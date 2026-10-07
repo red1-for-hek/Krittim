@@ -88,7 +88,7 @@ function ChatRow({ chat }: { chat: Chat }) {
             <button
               type="submit"
               aria-label="Confirm rename"
-              className="grid size-6 shrink-0 place-items-center rounded-md text-emerald-400 transition-colors hover:bg-white/10"
+              className="grid size-6 shrink-0 place-items-center rounded-md text-emerald-400 transition-colors hover:bg-surface-hover"
             >
               <Check className="size-3.5" strokeWidth={2.4} />
             </button>
@@ -130,7 +130,7 @@ function ChatRow({ chat }: { chat: Chat }) {
                 type="button"
                 aria-label={`Rename chat — ${chat.title}`}
                 onClick={() => setRenaming(true)}
-                className="grid size-6 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-white/10 hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40 active:scale-90"
+                className="grid size-6 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40 active:scale-90"
               >
                 <Pencil className="size-3" strokeWidth={2} />
               </button>
@@ -181,7 +181,7 @@ export function ProjectsSection() {
           <ChevronDownIcon />
         </motion.span>
         Projects
-        <span className="ml-auto rounded-full bg-white/[0.06] px-1.5 py-0.5 font-mono text-[9px] normal-case tracking-normal text-muted-foreground/70">
+        <span className="ml-auto rounded-full bg-surface-hover px-1.5 py-0.5 font-mono text-[9px] normal-case tracking-normal text-muted-foreground/70">
           {projects.length}
         </span>
       </button>
@@ -210,7 +210,7 @@ export function ProjectsSection() {
                           setOpenProjects((prev) => ({ ...prev, [project.id]: !prev[project.id] }))
                         }
                         aria-expanded={isOpen}
-                        className="group/proj flex min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-left text-[13px] text-muted-foreground outline-none transition-colors hover:bg-white/[0.05] hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40"
+                        className="group/proj flex min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-left text-[13px] text-muted-foreground outline-none transition-colors hover:bg-surface-soft hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40"
                       >
                         <span
                           className={cn(
@@ -229,7 +229,7 @@ export function ProjectsSection() {
                         type="button"
                         aria-label={`New chat in ${project.name}`}
                         onClick={() => createChat(project.id)}
-                        className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 outline-none transition-all hover:bg-white/10 hover:text-foreground focus-visible:opacity-100 group-hover/proj:opacity-100 active:scale-90"
+                        className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 outline-none transition-all hover:bg-surface-hover hover:text-foreground focus-visible:opacity-100 group-hover/proj:opacity-100 active:scale-90"
                       >
                         <PlusIcon />
                       </button>
@@ -243,7 +243,7 @@ export function ProjectsSection() {
                           animate={{ opacity: 1, height: 'auto' }}
                           exit={{ opacity: 0, height: 0 }}
                           transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                          className="ml-4 overflow-hidden border-l border-white/[0.06] pl-1"
+                          className="ml-4 overflow-hidden border-l border-hairline pl-1"
                         >
                           {projectChats
                             .slice()
@@ -320,14 +320,14 @@ export function ChatList() {
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Search conversations…"
             aria-label="Search conversations"
-            className="h-9 w-full rounded-xl border border-white/[0.07] bg-white/[0.04] pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+            className="h-9 w-full rounded-xl border border-hairline bg-surface-soft pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
           />
           {query && (
             <button
               type="button"
               aria-label="Clear search"
               onClick={() => setQuery('')}
-              className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-white/10 hover:text-foreground"
+              className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
             >
               <X className="size-3" strokeWidth={2.2} />
             </button>

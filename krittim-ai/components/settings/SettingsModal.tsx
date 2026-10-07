@@ -3,6 +3,8 @@
 import { motion } from 'framer-motion';
 import {
   Brain,
+  DatabaseZap,
+  Eraser,
   MonitorSmartphone,
   Moon,
   Radio,
@@ -37,7 +39,7 @@ function SectionCard({ children, danger = false }: { children: ReactNode; danger
         'rounded-xl border p-4 transition-colors',
         danger
           ? 'border-red-500/20 bg-red-500/[0.04] hover:border-red-500/35'
-          : 'border-white/[0.07] bg-white/[0.03] hover:bg-white/[0.05]',
+          : 'border-hairline bg-surface hover:bg-surface-soft',
       )}
     >
       {children}
@@ -59,7 +61,7 @@ function SettingRow({
   return (
     <div className="flex items-start justify-between gap-4">
       <div className="flex min-w-0 gap-3">
-        <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-white/[0.06] bg-white/[0.04] text-brand">
+        <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border border-hairline bg-surface-soft text-brand">
           <Icon className="size-4" strokeWidth={1.9} />
         </span>
         <div className="min-w-0">
@@ -95,7 +97,7 @@ function ThemeOption({
         'relative flex flex-col items-center gap-2 rounded-xl border px-3 py-4 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-brand/50',
         active
           ? 'border-brand/50 bg-brand/10 text-foreground shadow-[0_0_24px_-8px_oklch(0.72_0.17_278/50%)]'
-          : 'border-white/[0.07] bg-white/[0.03] text-muted-foreground hover:border-white/15 hover:text-foreground',
+          : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:text-foreground',
       )}
     >
       {/* animated selection glow */}
@@ -124,13 +126,19 @@ export function SettingsModal() {
   const setAiMemory = useChatStore((s) => s.setAiMemory);
   const streamResponses = useChatStore((s) => s.streamResponses);
   const setStreamResponses = useChatStore((s) => s.setStreamResponses);
-  const clearMessages = useChatStore((s) => s.clearMessages);
+  const clearAllChats = useChatStore((s) => s.clearAllChats);
+
+  const resetAllData = useChatStore((s) => s.resetAllData);
 
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [confirmingReset, setConfirmingReset] = useState(false);
 
   const handleOpenChange = (next: boolean) => {
     setOpen(next);
-    if (!next) setConfirmingClear(false);
+    if (!next) {
+      setConfirmingClear(false);
+      setConfirmingReset(false);
+    }
   };
 
   return (
@@ -158,7 +166,7 @@ export function SettingsModal() {
           </DialogHeader>
 
           <Tabs defaultValue="appearance" className="gap-4">
-            <TabsList className="w-full rounded-xl border border-white/[0.06] bg-white/[0.04] p-1">
+            <TabsList className="w-full rounded-xl border border-hairline bg-surface-soft p-1">
               <TabsTrigger value="appearance" className="rounded-lg text-xs">
                 Appearance
               </TabsTrigger>
@@ -189,7 +197,7 @@ export function SettingsModal() {
                     title="Interface density"
                     description="Comfortable spacing is tuned for long-form reasoning threads."
                   >
-                    <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-2.5 py-1 text-[11px] text-muted-foreground">
+                    <span className="rounded-full border border-white/[0.08] bg-surface-soft px-2.5 py-1 text-[11px] text-muted-foreground">
                       Comfortable
                     </span>
                   </SettingRow>
@@ -254,7 +262,7 @@ export function SettingsModal() {
                       aria-label="Clear all chats"
                       onClick={() => {
                         if (confirmingClear) {
-                          clearMessages();
+                          clearAllChats();
                           setConfirmingClear(false);
                           handleOpenChange(false);
                         } else {
@@ -272,11 +280,42 @@ export function SettingsModal() {
                     </Button>
                   </SettingRow>
                 </SectionCard>
+
+                <SectionCard danger>
+                  <SettingRow
+                    icon={DatabaseZap}
+                    title="Clear Local Storage"
+                    description="Wipes every chat, message and preference from this browser — Krittm reboots to a factory-fresh state on next load."
+                  >
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      aria-label="Clear local storage"
+                      onClick={() => {
+                        if (confirmingReset) {
+                          resetAllData();
+                          setConfirmingReset(false);
+                          handleOpenChange(false);
+                        } else {
+                          setConfirmingReset(true);
+                          window.setTimeout(() => setConfirmingReset(false), 3000);
+                        }
+                      }}
+                      className={cn(
+                        'h-8 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 shadow-none transition-all duration-200 hover:bg-red-500/25 hover:text-red-300',
+                        confirmingReset && 'bg-red-500 text-white hover:bg-red-500 hover:text-white',
+                      )}
+                    >
+                      <Eraser className="size-3.5" strokeWidth={2.2} />
+                      {confirmingReset ? 'Tap again to confirm' : 'Clear Storage'}
+                    </Button>
+                  </SettingRow>
+                </SectionCard>
               </motion.div>
             </TabsContent>
           </Tabs>
 
-          <p className="border-t border-white/[0.06] pt-3 text-[11px] text-muted-foreground/50">
+          <p className="border-t border-hairline pt-3 text-[11px] text-muted-foreground/50">
             Krittim AI · built by BNMPC IT Club
           </p>
         </motion.div>

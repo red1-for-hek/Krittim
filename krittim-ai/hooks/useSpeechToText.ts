@@ -16,6 +16,8 @@ interface SpeechRecognitionAlternative {
 }
 interface SpeechRecognitionResult {
   readonly length: number;
+  /** True once the browser has finalised this result (final vs. interim). */
+  readonly isFinal: boolean;
   [index: number]: SpeechRecognitionAlternative;
 }
 interface SpeechRecognitionEventLike extends Event {

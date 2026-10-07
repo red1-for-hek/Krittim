@@ -38,7 +38,7 @@ export function ModelSwitcher() {
           <button
             type="button"
             aria-label={`Model: ${active.name}`}
-            className="group flex items-center gap-1.5 rounded-full border border-white/[0.07] bg-white/[0.03] px-3 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-all duration-200 hover:border-white/15 hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50 data-popup-open:border-brand/40 data-popup-open:text-foreground data-popup-open:shadow-[0_0_20px_-6px_oklch(0.72_0.17_278/60%)]"
+            className="group flex items-center gap-1.5 rounded-full border border-hairline bg-surface px-3 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-all duration-200 hover:border-brand/30 hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50 data-popup-open:border-brand/40 data-popup-open:text-foreground data-popup-open:shadow-[0_0_20px_-6px_oklch(0.72_0.17_278/60%)]"
           />
         }
       >
@@ -81,7 +81,7 @@ export function ModelSwitcher() {
                     'mt-0.5 grid size-8 shrink-0 place-items-center rounded-lg border transition-colors ' +
                     (isActive
                       ? 'border-brand/30 bg-brand/15 text-brand'
-                      : 'border-white/[0.06] bg-white/[0.04] text-muted-foreground')
+                      : 'border-hairline bg-surface-soft text-muted-foreground')
                   }
                 >
                   <Icon className="size-4" strokeWidth={1.9} />
@@ -90,7 +90,7 @@ export function ModelSwitcher() {
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="flex items-center gap-2 text-sm font-medium">
                     {m.name}
-                    <span className="rounded-full border border-white/[0.08] bg-white/[0.04] px-1.5 py-px text-[10px] font-normal text-muted-foreground">
+                    <span className="rounded-full border border-white/[0.08] bg-surface-soft px-1.5 py-px text-[10px] font-normal text-muted-foreground">
                       {m.tagline}
                     </span>
                   </span>
@@ -115,7 +115,7 @@ export function ModelSwitcher() {
             );
           })}
 
-          <div className="mt-1 border-t border-white/[0.06] px-2.5 pb-1 pt-2 text-[11px] text-muted-foreground/50">
+          <div className="mt-1 border-t border-hairline px-2.5 pb-1 pt-2 text-[11px] text-muted-foreground/50">
             Auto mode benchmarks every prompt before routing.
           </div>
         </motion.div>

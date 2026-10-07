@@ -135,7 +135,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
         {activeNav === id && (
           <motion.span
             layoutId={`nav-active-pill-${variant}`}
-            className="absolute inset-0 rounded-xl border border-white/[0.06] bg-white/[0.06]"
+            className="absolute inset-0 rounded-xl border border-hairline bg-surface-hover"
             transition={SPRING}
           />
         )}
@@ -216,7 +216,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
                   type="button"
                   onClick={() => setSidebarOpen(false)}
                   aria-label="Collapse sidebar"
-                  className="ml-auto grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                  className="ml-auto grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
                 />
               }
             >
@@ -236,7 +236,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
           isCollapsed={collapsed}
           onClick={openNewChat}
           trailing={
-            <kbd className="rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+            <kbd className="rounded-md border border-white/10 bg-surface-soft px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               ⌘K
             </kbd>
           }
@@ -281,7 +281,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
               <button
                 type="button"
                 className={cn(
-                  'flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-muted-foreground outline-none transition-colors hover:bg-white/[0.06] hover:text-foreground data-popup-open:bg-white/[0.06] data-popup-open:text-foreground',
+                  'flex w-full items-center gap-3 rounded-xl border border-hairline bg-surface px-3 py-2 text-sm text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground data-popup-open:bg-surface-hover data-popup-open:text-foreground',
                   collapsed && 'justify-center px-0',
                 )}
               />
@@ -327,7 +327,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
       </div>
 
       {/* ---- Footer ---- */}
-      <div className={cn('border-t border-white/[0.06] p-3', collapsed && 'flex justify-center')}>
+      <div className={cn('border-t border-hairline p-3', collapsed && 'flex justify-center')}>
         {!collapsed ? (
           <div className="flex items-center gap-2 px-1 text-[11px] text-muted-foreground/60">
             <Sparkles className="size-3" strokeWidth={1.8} />
