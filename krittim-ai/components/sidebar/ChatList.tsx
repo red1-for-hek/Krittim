@@ -13,8 +13,8 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 
-function timeAgo(timestamp: number): string {
-  const diff = timestamp - Date.now();
+function timeAgo(timestamp: number, now: number): string {
+  const diff = timestamp - now;
   const minutes = Math.round(diff / 60_000);
   if (Math.abs(minutes) < 60) return relativeTime.format(minutes || -1, 'minute');
   const hours = Math.round(minutes / 60);
@@ -22,9 +22,25 @@ function timeAgo(timestamp: number): string {
   return relativeTime.format(Math.round(hours / 24), 'day');
 }
 
+function useCurrentTime() {
+  const [now, setNow] = useState<number | null>(null);
+
+  useEffect(() => {
+    const update = () => setNow(Date.now());
+    const initialUpdate = window.setTimeout(update, 0);
+    const interval = window.setInterval(update, 60_000);
+    return () => {
+      window.clearTimeout(initialUpdate);
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  return now;
+}
+
 /* --------------------------------- row ------------------------------------ */
 
-function ChatRow({ chat }: { chat: Chat }) {
+function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
   const isActive = useChatStore((s) => s.activeChatId === chat.id);
   const selectChat = useChatStore((s) => s.selectChat);
   const renameChat = useChatStore((s) => s.renameChat);
@@ -116,7 +132,7 @@ function ChatRow({ chat }: { chat: Chat }) {
                   isActive && 'text-brand-soft/70',
                 )}
               >
-                {timeAgo(chat.updatedAt)}
+                {now === null ? '—' : timeAgo(chat.updatedAt, now)}
               </span>
             </button>
 
@@ -177,6 +193,7 @@ export function ProjectsSection() {
   const collapsed = useChatStore((s) => s.projectsCollapsed);
   const toggleCollapsed = useChatStore((s) => s.toggleProjectsCollapsed);
   const createChat = useChatStore((s) => s.createChat);
+  const now = useCurrentTime();
 
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>(
     Object.fromEntries(projects.map((p) => [p.id, true])),
@@ -267,7 +284,7 @@ export function ProjectsSection() {
                             .slice()
                             .sort((a, b) => b.updatedAt - a.updatedAt)
                             .map((chat) => (
-                              <ChatRow key={chat.id} chat={chat} />
+                              <ChatRow key={chat.id} chat={chat} now={now} />
                             ))}
                         </motion.ul>
                       )}
@@ -311,6 +328,7 @@ const BUCKET_ORDER = ['Today', 'Yesterday', 'Previous 7 days', 'Previous 30 days
 export function ChatList() {
   const chats = useChatStore((s) => s.chats);
   const [query, setQuery] = useState('');
+  const now = useCurrentTime();
 
   const q = query.trim().toLowerCase();
   const visible = (q ? chats.filter((c) => c.title.toLowerCase().includes(q)) : chats).filter(
@@ -320,7 +338,7 @@ export function ChatList() {
   const groups = BUCKET_ORDER.map((label) => ({
     label,
     items: visible
-      .filter((c) => bucketFor(c.updatedAt) === label)
+      .filter((c) => bucketFor(c.updatedAt, now ?? 0) === label)
       .sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || b.updatedAt - a.updatedAt),
   })).filter((g) => g.items.length > 0);
 
@@ -383,7 +401,7 @@ export function ChatList() {
               <ul className="space-y-0.5">
                 <AnimatePresence initial={false}>
                   {group.items.map((chat) => (
-                    <ChatRow key={chat.id} chat={chat} />
+                    <ChatRow key={chat.id} chat={chat} now={now} />
                   ))}
                 </AnimatePresence>
               </ul>

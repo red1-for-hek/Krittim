@@ -114,8 +114,7 @@ function buildSeed(): { chats: Chat[]; messagesByChatId: Record<string, ChatMess
 
 /* ------------------------------ time buckets ------------------------------ */
 
-export function bucketFor(timestamp: number): string {
-  const now = Date.now();
+export function bucketFor(timestamp: number, now: number): string {
   if (now - timestamp < DAY) return 'Today';
   if (now - timestamp < 2 * DAY) return 'Yesterday';
   if (now - timestamp < 7 * DAY) return 'Previous 7 days';
