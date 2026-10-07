@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { toast } from 'sonner';
 
 import {
   PERSISTED_STATE_KEYS,
@@ -412,6 +413,7 @@ export const useChatStore = create<ChatState>()(
         stopRequested: false,
         threadKey: s.threadKey + 1,
       }));
+      toast.success('New chat created', { description: 'Start typing to bring it to life.' });
       return id;
     },
 
@@ -423,10 +425,12 @@ export const useChatStore = create<ChatState>()(
           c.id === id ? { ...c, title: trimmed, updatedAt: Date.now() } : c,
         ),
       }));
+      toast.success('Chat renamed');
     },
 
     deleteChat: (id) => {
       if (get().activeChatId === id) cancelInflight();
+      const title = get().chats.find((c) => c.id === id)?.title ?? 'Chat';
       set((s) => {
         const rest = { ...s.messagesByChatId };
         delete rest[id];
@@ -438,6 +442,7 @@ export const useChatStore = create<ChatState>()(
           stopRequested: false,
         };
       });
+      toast.success('Chat deleted', { description: `“${title}” is gone for good.` });
     },
 
     clearAllChats: () => {
@@ -465,6 +470,14 @@ export const useChatStore = create<ChatState>()(
       });
       // Drop the on-disk snapshot so a refresh starts genuinely blank.
       void useChatStore.persist.clearStorage();
+      try {
+        localStorage.removeItem('krittim-theme');
+      } catch {
+        /* storage disabled — cosmetic only */
+      }
+      toast.success('Local storage cleared', {
+        description: 'Every chat and preference was wiped from this browser.',
+      });
     },
 
     addMessage: (chatId, message) => {

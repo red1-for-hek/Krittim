@@ -13,6 +13,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
 import {
@@ -138,6 +139,7 @@ export function SettingsModal() {
     if (!next) {
       setConfirmingClear(false);
       setConfirmingReset(false);
+      toast.success('Settings saved', { description: 'Your preferences are stored locally.' });
     }
   };
 
