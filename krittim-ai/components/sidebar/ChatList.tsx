@@ -7,6 +7,7 @@ import { useEffect, useRef, useState } from 'react';
 import { bucketFor, useChatStore } from '@/store/chatStore';
 import type { Chat } from '@/lib/types';
 import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 
 /* ------------------------------ small utils ------------------------------- */
 
@@ -31,6 +32,7 @@ function ChatRow({ chat }: { chat: Chat }) {
 
   const [renaming, setRenaming] = useState(false);
   const [draft, setDraft] = useState(chat.title);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -137,7 +139,7 @@ function ChatRow({ chat }: { chat: Chat }) {
               <button
                 type="button"
                 aria-label={`Delete chat — ${chat.title}`}
-                onClick={() => deleteChat(chat.id)}
+                onClick={() => setConfirmingDelete(true)}
                 className="grid size-6 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-red-500/15 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-red-500/40 active:scale-90"
               >
                 <X className="size-3" strokeWidth={2.4} />
@@ -146,6 +148,22 @@ function ChatRow({ chat }: { chat: Chat }) {
           </>
         )}
       </div>
+
+      {/* two-step destructive confirmation — nothing deletes on a stray click */}
+      <ConfirmDialog
+        open={confirmingDelete}
+        onOpenChange={setConfirmingDelete}
+        title="Delete this chat?"
+        description={
+          <>
+            “{chat.title}” and every message inside it will be removed from this browser.
+            This action cannot be undone.
+          </>
+        }
+        confirmLabel="Delete chat"
+        destructive
+        onConfirm={() => deleteChat(chat.id)}
+      />
     </motion.li>
   );
 }
