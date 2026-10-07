@@ -14,7 +14,7 @@ import {
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useChatStore } from '@/store/chat-store';
+import { useChatStore } from '@/store/chatStore';
 
 const MAX_ROWS = 8;
 const LINE_HEIGHT = 24; // px — matches text-base leading-6
@@ -32,6 +32,7 @@ interface ChatInputProps {
 export function ChatInput({ className, autoFocus = false }: ChatInputProps) {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const isResponding = useChatStore((s) => s.isResponding);
+  const stopResponse = useChatStore((s) => s.stopResponse);
 
   const [value, setValue] = useState('');
   const [attachments, setAttachments] = useState<File[]>([]);
@@ -153,38 +154,42 @@ export function ChatInput({ className, autoFocus = false }: ChatInputProps) {
           <input ref={fileInputRef} type="file" multiple hidden onChange={handleFiles} />
 
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach files"
-                className="grid size-9 place-items-center rounded-xl text-muted-foreground outline-none transition-all duration-200 hover:bg-white/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-90"
-              >
-                <Paperclip className="size-4.5" strokeWidth={1.8} />
-              </button>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Attach files"
+                  className="grid size-9 place-items-center rounded-xl text-muted-foreground outline-none transition-all duration-200 hover:bg-white/[0.06] hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-90"
+                />
+              }
+            >
+              <Paperclip className="relative size-4.5" strokeWidth={1.8} />
             </TooltipTrigger>
             <TooltipContent side="top" className="rounded-lg">Attach files</TooltipContent>
           </Tooltip>
 
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => setListening((l) => !l)}
-                aria-label={listening ? 'Stop dictation' : 'Dictate with voice'}
-                aria-pressed={listening}
-                className={cn(
-                  'relative grid size-9 place-items-center rounded-xl outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-90',
-                  listening
-                    ? 'bg-brand/15 text-brand'
-                    : 'text-muted-foreground hover:bg-white/[0.06] hover:text-foreground',
-                )}
-              >
-                {listening && (
-                  <span className="absolute inset-0 animate-ping rounded-xl bg-brand/20 [animation-duration:1.6s]" />
-                )}
-                <Mic className={cn('relative size-4.5', listening && 'scale-110')} strokeWidth={1.8} />
-              </button>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => setListening((l) => !l)}
+                  aria-label={listening ? 'Stop dictation' : 'Dictate with voice'}
+                  aria-pressed={listening}
+                  className={cn(
+                    'relative grid size-9 place-items-center rounded-xl outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-90',
+                    listening
+                      ? 'bg-brand/15 text-brand'
+                      : 'text-muted-foreground hover:bg-white/[0.06] hover:text-foreground',
+                  )}
+                />
+              }
+            >
+              {listening && (
+                <span className="absolute inset-0 animate-ping rounded-xl bg-brand/20 [animation-duration:1.6s]" />
+              )}
+              <Mic className={cn('relative size-4.5', listening && 'scale-110')} strokeWidth={1.8} />
             </TooltipTrigger>
             <TooltipContent side="top" className="rounded-lg">
               {listening ? 'Listening — tap to stop' : 'Dictate'}
@@ -217,6 +222,24 @@ export function ChatInput({ className, autoFocus = false }: ChatInputProps) {
               <kbd className="rounded-md border border-white/10 bg-white/[0.04] px-1.5 py-0.5 font-mono">Enter</kbd>
               <span>for newline</span>
             </span>
+
+            {/* stop generation — appears while Krittim streams */}
+            <AnimatePresence>
+              {isResponding && (
+                <motion.button
+                  type="button"
+                  initial={{ opacity: 0, scale: 0.7 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.7 }}
+                  transition={{ type: 'spring', stiffness: 500, damping: 28 }}
+                  onClick={stopResponse}
+                  aria-label="Stop generating"
+                  className="grid size-10 place-items-center rounded-full border border-white/15 bg-white/[0.06] text-foreground outline-none transition-colors hover:bg-white/[0.12] focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-90"
+                >
+                  <span className="size-3 rounded-[3px] bg-current" />
+                </motion.button>
+              )}
+            </AnimatePresence>
 
             {/* glowing send */}
             <motion.button

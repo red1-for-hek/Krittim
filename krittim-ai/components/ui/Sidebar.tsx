@@ -29,7 +29,7 @@ import { Input } from '@/components/ui/input';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { MODEL_OPTIONS, type HistoryGroup, type ModelId } from '@/lib/types';
-import { useChatStore } from '@/store/chat-store';
+import { useChatStore } from '@/store/chatStore';
 
 /* ----------------------------- local mock data ---------------------------- */
 
@@ -121,6 +121,7 @@ function SidebarPanel({
   const setSidebarOpen = useChatStore((s) => s.setSidebarOpen);
   const newChat = useChatStore((s) => s.newChat);
   const model = useChatStore((s) => s.model);
+  const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
   const setModel = useChatStore((s) => s.setModel);
 
   const [activeNav, setActiveNav] = useState<string>('new');
@@ -135,6 +136,13 @@ function SidebarPanel({
         ),
       })).filter((g) => g.items.length > 0)
     : HISTORY;
+
+  const navClasses = (isActive: boolean, collapsedNow?: boolean) =>
+    cn(
+      'group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-brand/50',
+      isActive ? 'bg-white/[0.07] text-foreground' : 'text-muted-foreground hover:bg-white/[0.05] hover:text-foreground',
+      collapsedNow && 'justify-center px-0',
+    );
 
   const NavButton = ({
     id,
@@ -151,22 +159,14 @@ function SidebarPanel({
     onClick?: () => void;
     trailing?: React.ReactNode;
   }) => {
-    const button = (
-      <button
-        type="button"
-        onClick={() => {
-          setActiveNav(id);
-          onNavigate?.(id);
-          onClick?.();
-        }}
-        className={cn(
-          'group relative flex w-full items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-200',
-          activeNav === id
-            ? 'bg-white/[0.07] text-foreground'
-            : 'text-muted-foreground hover:bg-white/[0.05] hover:text-foreground',
-          collapsed && 'justify-center px-0',
-        )}
-      >
+    const handle = () => {
+      setActiveNav(id);
+      onNavigate?.(id);
+      onClick?.();
+    };
+
+    const content = (
+      <>
         {activeNav === id && (
           <motion.span
             layoutId="nav-active-pill"
@@ -175,24 +175,37 @@ function SidebarPanel({
           />
         )}
         <Icon className="relative z-10 size-4 shrink-0" strokeWidth={1.8} />
-        {!collapsed && (
-          <span className="relative z-10 truncate">{label}</span>
-        )}
-        {!collapsed && trailing && (
-          <span className="relative z-10 ml-auto">{trailing}</span>
-        )}
-      </button>
+        {!collapsed && <span className="relative z-10 truncate">{label}</span>}
+        {!collapsed && trailing && <span className="relative z-10 ml-auto">{trailing}</span>}
+      </>
     );
 
-    return collapsed ? (
-      <Tooltip>
-        <TooltipTrigger asChild>{button}</TooltipTrigger>
-        <TooltipContent side="right" className="glass-panel border border-white/10">
-          {label}
-        </TooltipContent>
-      </Tooltip>
-    ) : (
-      button
+    if (collapsed) {
+      return (
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                onClick={handle}
+                aria-label={label}
+                className={navClasses(activeNav === id, true)}
+              />
+            }
+          >
+            {content}
+          </TooltipTrigger>
+          <TooltipContent side="right" className="glass-panel border border-white/10">
+            {label}
+          </TooltipContent>
+        </Tooltip>
+      );
+    }
+
+    return (
+      <button type="button" onClick={handle} className={navClasses(activeNav === id)}>
+        {content}
+      </button>
     );
   };
 
@@ -234,15 +247,17 @@ function SidebarPanel({
         </button>
         {variant === 'desktop' && sidebarOpen && (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                onClick={() => setSidebarOpen(false)}
-                aria-label="Collapse sidebar"
-                className="ml-auto grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
-              >
-                <PanelLeftClose className="size-4" strokeWidth={1.8} />
-              </button>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  onClick={() => setSidebarOpen(false)}
+                  aria-label="Collapse sidebar"
+                  className="ml-auto grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-white/[0.06] hover:text-foreground"
+                />
+              }
+            >
+              <PanelLeftClose className="size-4" strokeWidth={1.8} />
             </TooltipTrigger>
             <TooltipContent>Collapse sidebar</TooltipContent>
           </Tooltip>
@@ -298,19 +313,19 @@ function SidebarPanel({
           Workspace
         </div>
         <NavButton id="chats" label="All Chats" icon={MessagesSquare} collapsed={!sidebarOpen} />
-        <NavButton id="settings" label="Settings" icon={Settings2} collapsed={!sidebarOpen} />
+        <NavButton id="settings" label="Settings" icon={Settings2} collapsed={!sidebarOpen} onClick={() => setSettingsOpen(true)} />
       </div>
 
       {/* ---- Model switcher ---- */}
       <div className={cn('mt-3 px-3', !sidebarOpen && 'px-2')}>
         <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <button
+          <DropdownMenuTrigger
+              render={<button
               type="button"
               className={cn(
-                'flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-muted-foreground outline-none transition-colors hover:bg-white/[0.06] hover:text-foreground data-[state=open]:bg-white/[0.06] data-[state=open]:text-foreground',
+                'flex w-full items-center gap-3 rounded-xl border border-white/[0.06] bg-white/[0.03] px-3 py-2 text-sm text-muted-foreground outline-none transition-colors hover:bg-white/[0.06] hover:text-foreground data-popup-open:bg-white/[0.06] data-popup-open:text-foreground',
                 !sidebarOpen && 'justify-center px-0',
-              )}
+              )} />}
             >
               {(() => {
                 const Icon = MODEL_ICONS[model];
@@ -324,8 +339,7 @@ function SidebarPanel({
                   <ChevronDown className="ml-auto size-3.5 shrink-0 opacity-60" strokeWidth={2} />
                 </>
               )}
-            </button>
-          </DropdownMenuTrigger>
+            </DropdownMenuTrigger>
           <DropdownMenuContent align="start" side="right" className="w-64 rounded-2xl border-white/10 bg-popover/80 backdrop-blur-xl">
             {MODEL_OPTIONS.map((m) => {
               const Icon = MODEL_ICONS[m.id];
@@ -398,10 +412,12 @@ function SidebarPanel({
           </div>
         ) : (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="grid size-8 place-items-center rounded-lg text-muted-foreground/60">
-                <Sparkles className="size-3.5" strokeWidth={1.8} />
-              </span>
+            <TooltipTrigger
+              render={
+                <span className="grid size-8 place-items-center rounded-lg text-muted-foreground/60" />
+              }
+            >
+              <Sparkles className="size-3.5" strokeWidth={1.8} />
             </TooltipTrigger>
             <TooltipContent side="right">Krittim AI · BNMPC IT Club</TooltipContent>
           </Tooltip>
