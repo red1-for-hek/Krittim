@@ -69,11 +69,15 @@ export interface UseSpeechToTextResult {
 }
 
 export function useSpeechToText({ lang, onTranscript }: UseSpeechToTextOptions = {}): UseSpeechToTextResult {
-  const [supported] = useState(() => getRecognitionCtor() !== null);
+  const [supported, setSupported] = useState(false);
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [volume, setVolume] = useState(0);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSupported(getRecognitionCtor() !== null);
+  }, []);
 
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const listeningRef = useRef(false); // readable inside stale event closures

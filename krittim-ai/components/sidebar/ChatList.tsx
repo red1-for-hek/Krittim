@@ -195,9 +195,7 @@ export function ProjectsSection() {
   const createChat = useChatStore((s) => s.createChat);
   const now = useCurrentTime();
 
-  const [openProjects, setOpenProjects] = useState<Record<string, boolean>>(
-    Object.fromEntries(projects.map((p) => [p.id, true])),
-  );
+  const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({});
 
   return (
     <div className="px-3">
@@ -328,6 +326,7 @@ const BUCKET_ORDER = ['Today', 'Yesterday', 'Previous 7 days', 'Previous 30 days
 export function ChatList() {
   const chats = useChatStore((s) => s.chats);
   const [query, setQuery] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const now = useCurrentTime();
 
   const q = query.trim().toLowerCase();
@@ -344,32 +343,56 @@ export function ChatList() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* search */}
-      <div className="px-3 pb-1">
-        <div className="relative">
-          <Search
-            className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-            strokeWidth={1.8}
-          />
-          <input
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search conversations…"
-            aria-label="Search conversations"
-            className="h-9 w-full rounded-xl border border-hairline bg-surface-soft pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
-          />
-          {query && (
-            <button
-              type="button"
-              aria-label="Clear search"
-              onClick={() => setQuery('')}
-              className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-            >
-              <X className="size-3" strokeWidth={2.2} />
-            </button>
-          )}
-        </div>
+      {/* search toggle icon */}
+      <div className="flex items-center gap-1 px-3 pb-1">
+        <button
+          type="button"
+          onClick={() => { setShowSearch((v) => !v); if (showSearch) setQuery(''); }}
+          aria-label={showSearch ? 'Hide search' : 'Search conversations'}
+          className="grid size-7 place-items-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-surface-hover hover:text-foreground"
+        >
+          <Search className="size-3.5" strokeWidth={1.8} />
+        </button>
       </div>
+
+      {/* collapsible search input */}
+      <AnimatePresence initial={false}>
+        {showSearch && (
+          <motion.div
+            key="search-bar"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+            className="overflow-hidden px-3 pb-2"
+          >
+            <div className="relative">
+              <Search
+                className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+                strokeWidth={1.8}
+              />
+              <input
+                autoFocus
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search conversations…"
+                aria-label="Search conversations"
+                className="h-9 w-full rounded-xl border border-hairline bg-surface-soft pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+              />
+              {query && (
+                <button
+                  type="button"
+                  aria-label="Clear search"
+                  onClick={() => setQuery('')}
+                  className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+                >
+                  <X className="size-3" strokeWidth={2.2} />
+                </button>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* grouped rows */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">

@@ -31,9 +31,8 @@ import { toggleTheme, useChatStore } from '@/store/chatStore';
 const SPRING = { type: 'spring', stiffness: 420, damping: 34, mass: 0.9 } as const;
 
 const MODEL_ICONS: Record<ModelId, LucideIcon> = {
-  auto: Sparkles,
-  fast: Zap,
-  thinking: BrainCircuit,
+  r1_xenon: BrainCircuit,
+  s1_neon: Zap,
 };
 
 interface PaletteAction {

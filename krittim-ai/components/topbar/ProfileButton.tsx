@@ -18,16 +18,16 @@ import {
   DropdownMenuShortcut,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { MOCK_USER } from '@/lib/types';
+import { CURRENT_USER } from '@/lib/types';
 import { useChatStore } from '@/store/chatStore';
 
 /**
- * ProfileButton — mock auth surface in the top bar.
- * Gradient avatar opens a glass dropdown for the demo account:
- * identity header · Profile · Settings · Upgrade to Pro · Log out (disabled).
+ * ProfileButton — Account & Workspace surface in the top bar.
+ * Gradient avatar opens a frosted glass dropdown for the enterprise account.
  */
 export function ProfileButton() {
   const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
+  const resetAllData = useChatStore((s) => s.resetAllData);
 
   return (
     <DropdownMenu>
@@ -35,17 +35,16 @@ export function ProfileButton() {
         render={
           <button
             type="button"
-            aria-label={`Account menu — ${MOCK_USER.name}`}
+            aria-label={`Account menu — ${CURRENT_USER.name}`}
             className="group rounded-full outline-none transition-transform duration-200 focus-visible:ring-2 focus-visible:ring-brand/60 active:scale-95"
           />
         }
       >
         <Avatar className="size-8 ring-1 ring-white/10 transition-all duration-300 group-hover:ring-brand/50 group-data-popup-open:ring-brand/70">
-          {/* Demo account has no photo — luminous "K" monogram stands in. */}
           <div className="grid size-full place-items-center bg-gradient-to-br from-brand via-brand to-brand-soft text-[11px] font-semibold text-white">
             <span className="font-serif-display italic">K</span>
           </div>
-          <AvatarFallback>{MOCK_USER.initials}</AvatarFallback>
+          <AvatarFallback>{CURRENT_USER.initials}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
 
@@ -57,7 +56,7 @@ export function ProfileButton() {
         {/* ---- identity header ---- */}
         <DropdownMenuLabel className="flex items-center gap-3 border-b border-hairline bg-surface px-3.5 py-3">
           <span className="relative grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand via-brand to-brand-soft text-xs font-semibold text-white">
-            {MOCK_USER.initials}
+            {CURRENT_USER.initials}
             <motion.span
               aria-hidden
               initial={{ opacity: 0 }}
@@ -67,23 +66,18 @@ export function ProfileButton() {
             />
           </span>
           <span className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-medium text-foreground">{MOCK_USER.name}</span>
-            <span className="truncate text-xs text-muted-foreground">{MOCK_USER.email}</span>
+            <span className="truncate text-sm font-medium text-foreground">{CURRENT_USER.name}</span>
+            <span className="truncate text-xs text-muted-foreground">{CURRENT_USER.email}</span>
           </span>
         </DropdownMenuLabel>
 
         <div className="p-1.5">
           <DropdownMenuItem
-            onSelect={() => {
-              /* Demo build — profile page lands with the backend. */
-            }}
+            onSelect={() => setSettingsOpen(true)}
             className="gap-2.5 rounded-lg"
           >
             <UserRound className="size-4 text-muted-foreground" strokeWidth={1.9} />
-            Profile
-            <DropdownMenuShortcut className="rounded-md border border-white/10 bg-surface-soft px-1.5 py-0.5 font-mono text-[9px] normal-case tracking-normal text-muted-foreground/70">
-              soon
-            </DropdownMenuShortcut>
+            Account & Workspace
           </DropdownMenuItem>
 
           <DropdownMenuItem
@@ -98,25 +92,25 @@ export function ProfileButton() {
           <DropdownMenuSeparator className="mx-1 my-1.5" />
 
           <DropdownMenuItem
-            onSelect={() => {
-              /* Mock upgrade intent — swap for billing checkout when wired up. */
-            }}
+            onSelect={() => setSettingsOpen(true)}
             className="gap-2.5 rounded-lg text-brand focus:bg-brand/10 focus:text-brand focus:**:text-brand!"
           >
             <Crown className="size-4" strokeWidth={1.9} />
-            Upgrade to Pro
-            <Check className="ml-auto size-3.5 opacity-0" />
+            Enterprise Plan
+            <Check className="ml-auto size-3.5 text-brand opacity-100" />
           </DropdownMenuItem>
 
-          <DropdownMenuItem disabled className="gap-2.5 rounded-lg">
+          <DropdownMenuItem
+            onSelect={() => resetAllData()}
+            className="gap-2.5 rounded-lg text-muted-foreground hover:text-red-400 focus:text-red-400"
+          >
             <LogOut className="size-4" strokeWidth={1.9} />
-            Log out
-            <DropdownMenuShortcut>mock</DropdownMenuShortcut>
+            Reset Session
           </DropdownMenuItem>
         </div>
 
         <p className="border-t border-hairline px-3.5 py-2 text-[10px] text-muted-foreground/60">
-          <span className="font-serif-display italic">{MOCK_USER.plan}</span>
+          <span className="font-serif-display italic">{CURRENT_USER.plan}</span>
         </p>
       </DropdownMenuContent>
     </DropdownMenu>

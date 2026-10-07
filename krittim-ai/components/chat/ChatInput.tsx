@@ -1,34 +1,49 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { AudioLines, FileText, ImageIcon, Mic, Paperclip, Square, X, Zap } from 'lucide-react';
+import {
+  ArrowUp,
+  AudioLines,
+  BrainCircuit,
+  Check,
+  ChevronDown,
+  FileText,
+  ImageIcon,
+  Mic,
+  Paperclip,
+  Sparkles,
+  Square,
+  X,
+  Zap,
+  type LucideIcon,
+} from 'lucide-react';
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useSpeechToText } from '@/hooks/useSpeechToText';
-import type { AttachmentMeta } from '@/lib/types';
+import { MODE_OPTIONS, type AttachmentMeta, type ReasoningMode } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/store/chatStore';
 
 /* -------------------------------------------------------------------------- */
-/*  ChatInput — the composer                                                   */
-/*                                                                            */
-/*  • Auto-resizing textarea (1 → 8 rows) with Enter-to-send / Shift+Enter NL. */
-/*  • Attachments: paperclip opens a picker; premium animated chips w/ local   */
-/*    image previews above the field. Nothing is uploaded — metadata only.     */
-/*  • Dictation via the Web Speech API; mic pulses + live waveform while on.   */
-/*  • Send ignites (brand glow) only when there is something to send;          */
-/*    morphs into a red Stop pill that hard-cancels the mock stream.           */
+/*  ChatInput — World-class AI Composer                                       */
+/*  • Left: File attachment picker + Voice dictation                          */
+/*  • Right: Reasoning Mode switcher (Auto / Lightning / Thinking) + Send     */
 /* -------------------------------------------------------------------------- */
 
 const SPRING = { type: 'spring', stiffness: 420, damping: 32, mass: 0.85 } as const;
 const MAX_ROWS = 8;
-const LINE_HEIGHT = 24; // px — mirrors text-base leading-6 below
+const LINE_HEIGHT = 24;
 
 interface PendingFile {
   id: string;
   meta: AttachmentMeta;
-  /** objectURL for images so the chip can show a real thumbnail */
   previewUrl?: string;
 }
 
@@ -38,15 +53,28 @@ const formatBytes = (bytes: number): string => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const MODE_ICONS: Record<ReasoningMode, LucideIcon> = {
+  auto: Sparkles,
+  fast: Zap,
+  thinking: BrainCircuit,
+};
+
 let fileCounter = 0;
 
-export function ChatInput() {
+interface ChatInputProps {
+  centered?: boolean;
+}
+
+export function ChatInput({ centered = false }: ChatInputProps) {
   const sendMessage = useChatStore((s) => s.sendMessage);
   const stopStreaming = useChatStore((s) => s.stopStreaming);
   const isStreaming = useChatStore((s) => s.isStreaming);
+  const reasoningMode = useChatStore((s) => s.reasoningMode);
+  const setReasoningMode = useChatStore((s) => s.setReasoningMode);
 
   const [value, setValue] = useState('');
   const [files, setFiles] = useState<PendingFile[]>([]);
+  const [modeMenuOpen, setModeMenuOpen] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -75,7 +103,7 @@ export function ChatInput() {
   /* ------------------------------- attachments ---------------------------- */
   const onPickFiles = (event: ChangeEvent<HTMLInputElement>) => {
     const picked = Array.from(event.target.files ?? []);
-    event.target.value = ''; // allow re-picking the same file
+    event.target.value = '';
     if (!picked.length) return;
 
     const next: PendingFile[] = picked.slice(0, 6).map((file) => {
@@ -98,7 +126,6 @@ export function ChatInput() {
     });
   };
 
-  // Revoke any live previews on unmount.
   useEffect(() => {
     return () => files.forEach((f) => f.previewUrl && URL.revokeObjectURL(f.previewUrl));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -127,11 +154,12 @@ export function ChatInput() {
     }
   };
 
-  /* --------------------------------- render ------------------------------- */
+  const activeMode = MODE_OPTIONS.find((m) => m.id === reasoningMode) ?? MODE_OPTIONS[0];
+  const ActiveModeIcon = MODE_ICONS[activeMode.id];
   const waveBars = useMemo(() => Array.from({ length: 22 }, (_, i) => i), []);
 
   return (
-    <div className="px-3 pb-3 pt-1 md:px-6 md:pb-5">
+    <div className={cn('w-full', centered ? 'px-2' : 'px-3 pb-3 pt-1 md:px-6 md:pb-5')}>
       <div className="mx-auto w-full max-w-3xl">
         {/* ---- attachment chips ---- */}
         <AnimatePresence initial={false}>
@@ -141,10 +169,10 @@ export function ChatInput() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden"
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden pb-2"
             >
-              <div className="flex flex-wrap gap-2 px-1 pb-2.5">
+              <div className="flex flex-wrap gap-2">
                 <AnimatePresence initial={false}>
                   {files.map((file) => (
                     <motion.div
@@ -199,9 +227,10 @@ export function ChatInput() {
         {/* ---- composer frame ---- */}
         <div
           className={cn(
-            'composer-glow relative rounded-2xl border border-hairline bg-popover/70 backdrop-blur-xl',
-            'transition-shadow duration-300',
-            isStreaming && 'border-brand/30',
+            'composer-glow relative rounded-2xl border border-white/10 bg-popover/80 backdrop-blur-2xl shadow-[0_20px_50px_-20px_rgba(0,0,0,0.7)]',
+            'transition-all duration-300',
+            isStreaming && 'border-brand/40 shadow-[0_0_30px_-8px_oklch(0.72_0.17_278/40%)]',
+            centered && 'shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85)] border-white/15 ring-1 ring-white/5',
           )}
         >
           {/* listening strip — live waveform + interim transcript */}
@@ -237,14 +266,15 @@ export function ChatInput() {
                     ))}
                   </span>
                   <p className="min-w-0 flex-1 truncate text-xs italic text-muted-foreground">
-                    {speech.interimTranscript || 'Listening — speak naturally…'}
+                    {speech.interimTranscript || 'Listening — speak clearly…'}
                   </p>
                 </div>
               </motion.div>
             )}
           </AnimatePresence>
 
-          <div className="flex items-end gap-1.5 p-2 pl-3.5">
+          {/* Text Area */}
+          <div className="p-3 pb-1">
             <textarea
               ref={textareaRef}
               value={value}
@@ -252,17 +282,20 @@ export function ChatInput() {
               onKeyDown={onKeyDown}
               rows={1}
               placeholder={
-                speech.listening ? 'Dictating… just keep talking' : 'Ask Krittim anything — paste code, attach files…'
+                speech.listening ? 'Dictating… say your thought' : 'Ask Krittim anything, brainstorm, or paste context…'
               }
               aria-label="Message Krittim AI"
               className={cn(
-                'max-h-[192px] min-h-[24px] w-full resize-none bg-transparent text-base leading-6 text-foreground',
-                'outline-none placeholder:text-muted-foreground/55 selection:bg-brand/25',
+                'max-h-[192px] min-h-[44px] w-full resize-none bg-transparent px-1 text-[15px] sm:text-base leading-relaxed text-foreground',
+                'outline-none placeholder:text-muted-foreground/45 selection:bg-brand/25',
               )}
             />
+          </div>
 
-            {/* right control cluster */}
-            <div className="flex shrink-0 items-center gap-1 pb-0.5">
+          {/* Bottom Toolbar: File upload on LEFT, Model mode + Send on RIGHT */}
+          <div className="flex items-center justify-between px-3 pb-2.5 pt-1">
+            {/* LEFT: File Upload & Voice */}
+            <div className="flex items-center gap-1.5">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -273,64 +306,120 @@ export function ChatInput() {
                 aria-hidden
                 tabIndex={-1}
               />
-              <IconButton label="Attach files" onClick={() => fileInputRef.current?.click()}>
-                <Paperclip className="size-[17px]" strokeWidth={1.8} />
-              </IconButton>
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                aria-label="Attach documents or images"
+                title="Attach documents or images"
+                className="group flex items-center gap-1.5 rounded-xl border border-hairline bg-surface px-2.5 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-all duration-200 hover:border-brand/30 hover:bg-surface-hover hover:text-foreground active:scale-95"
+              >
+                <Paperclip className="size-3.5 text-muted-foreground group-hover:text-brand transition-colors" strokeWidth={2} />
+                <span className="hidden sm:inline">Attach</span>
+              </button>
 
-              <TooltipableButton
-                label={
-                  speech.supported
-                    ? speech.listening
-                      ? 'Stop dictation'
-                      : 'Dictate a message'
-                    : 'Dictation not supported in this browser'
-                }
+              <button
+                type="button"
                 onClick={() => {
                   if (!speech.supported) return;
                   speech.toggle();
                 }}
-                active={speech.listening}
                 disabled={!speech.supported}
+                aria-label={speech.listening ? 'Stop recording' : 'Dictate with voice'}
+                title={speech.supported ? 'Dictate prompt' : 'Speech recognition not supported in this browser'}
+                className={cn(
+                  'grid size-8 place-items-center rounded-xl border border-hairline outline-none transition-all duration-200 active:scale-95',
+                  speech.listening
+                    ? 'border-brand/40 bg-brand/15 text-brand shadow-[0_0_14px_-2px_oklch(0.72_0.17_278/70%)]'
+                    : 'bg-surface text-muted-foreground hover:border-brand/30 hover:bg-surface-hover hover:text-foreground',
+                  !speech.supported && 'opacity-40 cursor-not-allowed',
+                )}
               >
-                <Mic className="size-[17px]" strokeWidth={1.8} />
-              </TooltipableButton>
+                <Mic className="size-3.5" strokeWidth={2} />
+              </button>
+            </div>
 
-              {/* send / stop */}
+            {/* RIGHT: Mode Selector (Auto / Lightning / Thinking) + Send / Stop */}
+            <div className="flex items-center gap-2">
+              {/* Reasoning Mode Switcher */}
+              <DropdownMenu open={modeMenuOpen} onOpenChange={setModeMenuOpen}>
+                <DropdownMenuTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label={`Mode: ${activeMode.name}`}
+                      className="group flex items-center gap-1.5 rounded-full border border-hairline bg-surface px-2.5 py-1 text-xs font-medium text-muted-foreground outline-none transition-all duration-200 hover:border-brand/35 hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50 data-popup-open:border-brand/50 data-popup-open:text-foreground"
+                    />
+                  }
+                >
+                  <ActiveModeIcon className="size-3.5 text-brand" strokeWidth={2} />
+                  <span>{activeMode.name}</span>
+                  <ChevronDown className="size-3 opacity-50 transition-transform duration-200 group-data-popup-open:rotate-180" />
+                </DropdownMenuTrigger>
+
+                <DropdownMenuContent
+                  align="end"
+                  className="w-56 rounded-2xl border-white/10 bg-popover/90 p-1.5 backdrop-blur-2xl shadow-[0_16px_50px_-16px_rgba(0,0,0,0.85)]"
+                >
+                  <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
+                    Reasoning Mode
+                  </div>
+                  {MODE_OPTIONS.map((m) => {
+                    const Icon = MODE_ICONS[m.id];
+                    const isSelected = reasoningMode === m.id;
+                    return (
+                      <DropdownMenuItem
+                        key={m.id}
+                        onSelect={() => setReasoningMode(m.id)}
+                        className="flex items-center gap-2.5 rounded-xl px-2.5 py-2 text-xs"
+                      >
+                        <Icon className={cn('size-3.5', isSelected ? 'text-brand' : 'text-muted-foreground')} strokeWidth={2} />
+                        <div className="flex flex-col">
+                          <span className={cn('font-medium', isSelected && 'text-brand')}>{m.name}</span>
+                          <span className="text-[10px] text-muted-foreground/70">{m.tagline}</span>
+                        </div>
+                        {isSelected && <Check className="ml-auto size-3.5 text-brand" strokeWidth={2.4} />}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+
+              {/* Send / Stop Action */}
               <AnimatePresence mode="wait" initial={false}>
                 {isStreaming ? (
                   <motion.button
                     key="stop"
                     type="button"
-                    initial={{ opacity: 0, scale: 0.7 }}
+                    initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.7 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
                     transition={SPRING}
                     onClick={stopStreaming}
-                    aria-label="Stop generating"
-                    className="group/stop flex h-9 items-center gap-1.5 rounded-xl bg-red-500/90 px-3 text-white shadow-[0_0_24px_-6px_oklch(0.62_0.21_25/85%)] outline-none transition-all hover:bg-red-500 focus-visible:ring-2 focus-visible:ring-red-400/60 active:scale-95"
+                    aria-label="Stop response"
+                    className="flex h-8 items-center gap-1.5 rounded-xl bg-red-500/90 px-3 text-xs font-semibold text-white shadow-[0_0_20px_-4px_oklch(0.62_0.21_25/80%)] outline-none hover:bg-red-500 active:scale-95 transition-all"
                   >
-                    <Square className="size-3.5 fill-current" strokeWidth={2} />
-                    <span className="text-sm font-medium">Stop</span>
+                    <Square className="size-3 fill-current" strokeWidth={2} />
+                    <span>Stop</span>
                   </motion.button>
                 ) : (
                   <motion.button
                     key="send"
                     type="button"
-                    initial={{ opacity: 0, scale: 0.7 }}
+                    initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.7 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
                     transition={SPRING}
                     onClick={submit}
                     disabled={!canSend}
-                    aria-label="Send message"
+                    aria-label="Send prompt"
                     className={cn(
-                      'grid size-9 place-items-center rounded-xl outline-none transition-all duration-300 active:scale-90',
+                      'grid size-8 place-items-center rounded-xl outline-none transition-all duration-300 active:scale-90',
                       canSend
-                        ? 'bg-gradient-to-br from-brand to-brand-soft text-white shadow-[0_0_28px_-6px_oklch(0.72_0.17_278/85%)] hover:shadow-[0_0_36px_-4px_oklch(0.72_0.17_278/95%)] focus-visible:ring-2 focus-visible:ring-brand/60'
-                        : 'cursor-not-allowed bg-surface-hover text-muted-foreground/50',
+                        ? 'bg-gradient-to-br from-brand via-brand to-brand-soft text-white shadow-[0_0_24px_-4px_oklch(0.72_0.17_278/90%)] hover:scale-105 focus-visible:ring-2 focus-visible:ring-brand/60'
+                        : 'cursor-not-allowed bg-surface-hover text-muted-foreground/40',
                     )}
                   >
-                    <Zap className={cn('size-[17px]', canSend ? 'translate-y-px' : '')} strokeWidth={2.1} />
+                    <ArrowUp className="size-4" strokeWidth={2.4} />
                   </motion.button>
                 )}
               </AnimatePresence>
@@ -338,11 +427,11 @@ export function ChatInput() {
           </div>
         </div>
 
-        {/* ---- helper line ---- */}
-        <div className="mt-2 flex items-center justify-between px-1 text-[11px] text-muted-foreground/60">
+        {/* Bottom Helper Subtext */}
+        <div className="mt-2 flex items-center justify-between px-2 text-[11px] text-muted-foreground/60">
           <span className="flex items-center gap-1.5">
             <AudioLines className="size-3" strokeWidth={1.8} />
-            Enter to send · Shift+Enter for a new line
+            Enter to send · Shift+Enter for new line
           </span>
           <AnimatePresence>
             {speech.error && (
@@ -350,82 +439,14 @@ export function ChatInput() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                className="text-red-400/80"
+                className="text-red-400 text-xs font-medium"
               >
-                {speech.error === 'unsupported' ? 'Voice input needs Chrome or Edge' : speech.error}
+                {speech.error}
               </motion.span>
             )}
           </AnimatePresence>
         </div>
       </div>
     </div>
-  );
-}
-
-/* ------------------------------ small buttons ------------------------------ */
-
-function IconButton({
-  label,
-  onClick,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      onClick={onClick}
-      className="grid size-9 place-items-center rounded-xl text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-90"
-    >
-      {children}
-    </button>
-  );
-}
-
-/** Mic button with its own pulse ring while listening. */
-function TooltipableButton({
-  label,
-  onClick,
-  active,
-  disabled,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  active?: boolean;
-  disabled?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      title={label}
-      aria-pressed={active}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        'relative grid size-9 place-items-center rounded-xl outline-none transition-colors',
-        'focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-90',
-        disabled && 'cursor-not-allowed opacity-40',
-        active
-          ? 'text-brand'
-          : 'text-muted-foreground hover:bg-surface-hover hover:text-foreground',
-      )}
-    >
-      {active && (
-        <motion.span
-          className="absolute inset-0 rounded-xl border border-brand/40 bg-brand/10"
-          animate={{ scale: [1, 1.12, 1], opacity: [0.7, 0, 0.7] }}
-          transition={{ duration: 1.4, repeat: Infinity, ease: 'easeOut' }}
-          aria-hidden
-        />
-      )}
-      <span className={cn('relative', active && 'text-brand')}>{children}</span>
-    </button>
   );
 }

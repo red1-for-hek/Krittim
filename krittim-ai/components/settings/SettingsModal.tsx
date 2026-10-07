@@ -163,7 +163,7 @@ export function SettingsModal() {
               Settings
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Tune Krittim to the way you think. Preferences are mocked for now.
+              Tune Krittim to your workflow, reasoning parameters, and workspace preferences.
             </DialogDescription>
           </DialogHeader>
 

@@ -9,6 +9,7 @@ import {
   type ChatMessage,
   type ModelId,
   type Project,
+  type ReasoningMode,
   type ThemePreference,
 } from '@/lib/types';
 
@@ -272,9 +273,11 @@ export interface ChatState {
   /** Incremented on every chat switch — lets MessageList replay its entrance animation. */
   threadKey: number;
 
-  /* model switcher */
+  /* model & reasoning switcher */
   model: ModelId;
   setModel: (model: ModelId) => void;
+  reasoningMode: ReasoningMode;
+  setReasoningMode: (mode: ReasoningMode) => void;
 
   /* multi-chat history */
   projects: Project[];
@@ -331,6 +334,8 @@ const patchMessageContent = (chatId: string, messageId: string, content: string)
     },
   }));
 
+const initialSeed = buildSeed();
+
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => {
@@ -371,18 +376,20 @@ export const useChatStore = create<ChatState>()(
     paletteOpen: false,
     setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
 
-    projectsCollapsed: false,
+    projectsCollapsed: true,
     toggleProjectsCollapsed: () => set((s) => ({ projectsCollapsed: !s.projectsCollapsed })),
 
     threadKey: 0,
 
-    /* ------------------------------ model ------------------------------- */
-    model: 'auto',
+    /* ------------------------------ model & mode ------------------------ */
+    model: 'r1_xenon',
     setModel: (model) => set({ model }),
+    reasoningMode: 'auto',
+    setReasoningMode: (reasoningMode) => set({ reasoningMode }),
 
     /* ---------------------------- history ------------------------------- */
-    projects: SEED_PROJECTS,
-    chats: buildSeed().chats,
+    projects: [],
+    chats: [],
     activeChatId: null,
     messagesByChatId: {},
     isStreaming: false,
@@ -446,10 +453,9 @@ export const useChatStore = create<ChatState>()(
 
     clearAllChats: () => {
       cancelInflight();
-      const fresh = buildSeed();
       set({
-        chats: fresh.chats,
-        messagesByChatId: fresh.messagesByChatId,
+        chats: [],
+        messagesByChatId: {},
         activeChatId: null,
         isStreaming: false,
         stopRequested: false,
@@ -508,7 +514,7 @@ export const useChatStore = create<ChatState>()(
      * real SSE feed will have, so consumers need no changes when the backend lands.
      */
     sendMessage: (content, attachments) => {
-      const { isStreaming, model } = get();
+      const { isStreaming, model, reasoningMode } = get();
       const trimmed = content.trim();
       if (!trimmed || isStreaming) return;
 
@@ -552,7 +558,7 @@ export const useChatStore = create<ChatState>()(
           return;
         }
 
-        state.addMessage(chatId, { id: assistantId, role: 'assistant', content: '', model });
+        state.addMessage(chatId, { id: assistantId, role: 'assistant', content: '', model, mode: reasoningMode });
         startCharStream(chatId, assistantId, fullReply);
       }, 620);
     },
@@ -596,8 +602,12 @@ export const useChatStore = create<ChatState>()(
 
 /* -------------------------------- selectors ------------------------------- */
 
+const EMPTY_MESSAGES: ChatMessage[] = [];
+
 export const selectActiveMessages = (s: ChatState): ChatMessage[] =>
-  s.activeChatId ? s.messagesByChatId[s.activeChatId] ?? [] : [];
+  (s.activeChatId && s.messagesByChatId[s.activeChatId])
+    ? s.messagesByChatId[s.activeChatId]
+    : EMPTY_MESSAGES;
 
 export const selectActiveChat = (s: ChatState): Chat | null =>
   s.chats.find((c) => c.id === s.activeChatId) ?? null;

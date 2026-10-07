@@ -3,38 +3,20 @@
 import { AnimatePresence, motion, type Variants } from 'framer-motion';
 import {
   Atom,
-  BrainCircuit,
-  Check,
-  ChevronDown,
   MessagesSquare,
-  PanelLeftClose,
   Settings2,
   Sparkles,
   SquarePen,
-  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 
 import { ChatList, ProjectsSection } from '@/components/sidebar/ChatList';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
-import { MODEL_OPTIONS, type ModelId } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/store/chatStore';
 
 /* ------------------------------ constants --------------------------------- */
-
-const MODEL_ICONS: Record<ModelId, LucideIcon> = {
-  auto: Sparkles,
-  fast: Zap,
-  thinking: BrainCircuit,
-};
 
 const SPRING = { type: 'spring', stiffness: 320, damping: 32, mass: 0.9 } as const;
 
@@ -89,9 +71,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
   const collapsed = variant === 'mobile' ? false : useChatStore((s) => !s.sidebarOpen);
   const setSidebarOpen = useChatStore((s) => s.setSidebarOpen);
   const createChat = useChatStore((s) => s.createChat);
-  const model = useChatStore((s) => s.model);
   const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
-  const setModel = useChatStore((s) => s.setModel);
 
   const [activeNav, setActiveNav] = useState<string>('new');
 
@@ -175,11 +155,11 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
   return (
     <motion.aside
       initial={false}
-      animate={variant === 'desktop' ? { width: collapsed ? 68 : 280 } : { width: 280 }}
+      animate={variant === 'desktop' ? { width: collapsed ? 64 : 240 } : { width: 240 }}
       transition={SPRING}
       className={cn(
         'glass-panel relative h-full flex-col overflow-hidden',
-        variant === 'desktop' ? 'z-30 hidden w-[280px] shrink-0 md:flex' : 'flex w-full flex-1',
+        variant === 'desktop' ? 'z-30 hidden w-[240px] shrink-0 md:flex' : 'flex w-full flex-1',
       )}
     >
       {/* ---- Brand header ---- */}
@@ -201,30 +181,13 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -6 }}
                 transition={{ duration: 0.18 }}
-                className="whitespace-nowrap font-serif-display text-[19px] italic tracking-tight text-aurora"
+                className="whitespace-nowrap font-serif-display text-[18px] italic tracking-tight text-aurora"
               >
                 Krittim&nbsp;AI
               </motion.span>
             )}
           </AnimatePresence>
         </button>
-        {variant === 'desktop' && !collapsed && (
-          <Tooltip>
-            <TooltipTrigger
-              render={
-                <button
-                  type="button"
-                  onClick={() => setSidebarOpen(false)}
-                  aria-label="Collapse sidebar"
-                  className="ml-auto grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-                />
-              }
-            >
-              <PanelLeftClose className="size-4" strokeWidth={1.8} />
-            </TooltipTrigger>
-            <TooltipContent>Collapse sidebar</TooltipContent>
-          </Tooltip>
-        )}
       </div>
 
       {/* ---- Primary actions ---- */}
@@ -273,58 +236,6 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
         <div className="flex-1" />
       )}
 
-      {/* ---- Model switcher ---- */}
-      <div className={cn('mb-2 mt-3 px-3', collapsed && 'px-2')}>
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                type="button"
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-xl border border-hairline bg-surface px-3 py-2 text-sm text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground data-popup-open:bg-surface-hover data-popup-open:text-foreground',
-                  collapsed && 'justify-center px-0',
-                )}
-              />
-            }
-          >
-            {(() => {
-              const Icon = MODEL_ICONS[model];
-              return <Icon className="size-4 shrink-0 text-brand" strokeWidth={1.8} />;
-            })()}
-            {!collapsed && (
-              <>
-                <span className="truncate font-medium">
-                  {MODEL_OPTIONS.find((m) => m.id === model)?.name ?? 'Auto'} mode
-                </span>
-                <ChevronDown className="ml-auto size-3.5 shrink-0 opacity-60" strokeWidth={2} />
-              </>
-            )}
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="start"
-            side={variant === 'desktop' ? 'right' : 'top'}
-            className="w-64 rounded-2xl border-white/10 bg-popover/80 backdrop-blur-xl"
-          >
-            {MODEL_OPTIONS.map((m) => {
-              const Icon = MODEL_ICONS[m.id];
-              return (
-                <DropdownMenuItem
-                  key={m.id}
-                  onSelect={() => setModel(m.id)}
-                  className="items-start gap-2.5 rounded-lg py-2"
-                >
-                  <Icon className="mt-0.5 size-4 text-brand" strokeWidth={1.8} />
-                  <div className="flex min-w-0 flex-col">
-                    <span className="text-sm font-medium">{m.name}</span>
-                    <span className="text-xs text-muted-foreground">{m.description}</span>
-                  </div>
-                  {model === m.id && <Check className="ml-auto mt-0.5 size-4 text-brand" />}
-                </DropdownMenuItem>
-              );
-            })}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </div>
 
       {/* ---- Footer ---- */}
       <div className={cn('border-t border-hairline p-3', collapsed && 'flex justify-center')}>

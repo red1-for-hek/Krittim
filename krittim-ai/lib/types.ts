@@ -18,8 +18,10 @@ export interface ChatMessage {
   createdAt: number;
   /** Which model produced this answer (assistant only). */
   model?: ModelId;
+  /** Which reasoning mode produced this answer (assistant only). */
+  mode?: ReasoningMode;
   pending?: boolean;
-  /** Files attached to this turn (mock — UI preview only). */
+  /** Files attached to this turn. */
   attachments?: AttachmentMeta[];
 }
 
@@ -43,7 +45,8 @@ export interface Project {
 
 /* --------------------------------- Models --------------------------------- */
 
-export type ModelId = "auto" | "fast" | "thinking";
+export type ModelId = "r1_xenon" | "s1_neon";
+export type ReasoningMode = "auto" | "fast" | "thinking";
 
 export interface ModelOption {
   id: ModelId;
@@ -54,23 +57,29 @@ export interface ModelOption {
 
 export const MODEL_OPTIONS: readonly ModelOption[] = [
   {
-    id: "auto",
-    name: "Krittim Auto",
-    tagline: "Balanced",
-    description: "Routes every prompt to the right engine automatically.",
+    id: "r1_xenon",
+    name: "Krittim R1 Xenon",
+    tagline: "Flagship",
+    description: "Flagship model of Krittim for complex tasks",
   },
   {
-    id: "fast",
-    name: "Krittim Fast",
-    tagline: "Lightning",
-    description: "Snappy responses for everyday questions and quick drafts.",
+    id: "s1_neon",
+    name: "Krittim S1 Neon",
+    tagline: "Speed & Daily",
+    description: "Best for general daily tasks",
   },
-  {
-    id: "thinking",
-    name: "Krittim Thinking",
-    tagline: "Deep reasoning",
-    description: "Extended chain-of-thought for math, code and hard problems.",
-  },
+] as const;
+
+export interface ModeOption {
+  id: ReasoningMode;
+  name: string;
+  tagline: string;
+}
+
+export const MODE_OPTIONS: readonly ModeOption[] = [
+  { id: "auto", name: "Auto", tagline: "Balanced" },
+  { id: "fast", name: "Lightning", tagline: "Fast" },
+  { id: "thinking", name: "Thinking", tagline: "Deep Reasoning" },
 ] as const;
 
 /* -------------------------------- Settings -------------------------------- */
@@ -92,9 +101,9 @@ export interface NavItem {
   badge?: string;
 }
 
-/* ------------------------------ Mock profile ------------------------------ */
+/* ------------------------------ User Profile ------------------------------ */
 
-export interface MockUser {
+export interface UserProfile {
   name: string;
   email: string;
   handle: string;
@@ -102,13 +111,17 @@ export interface MockUser {
   initials: string;
 }
 
-export const MOCK_USER: MockUser = {
-  name: "Demo User",
-  email: "demo@krittim.ai",
-  handle: "@demo",
-  plan: "Free · BNMPC IT Club",
-  initials: "DU",
+export type MockUser = UserProfile;
+
+export const CURRENT_USER: UserProfile = {
+  name: "BNMPC IT Club",
+  email: "core@bnmpc-it.org",
+  handle: "@bnmpc_it",
+  plan: "Pro Enterprise · Krittim AI",
+  initials: "KI",
 };
+
+export const MOCK_USER: UserProfile = CURRENT_USER;
 
 /* ------------------------------ persistence ------------------------------- */
 
@@ -119,6 +132,7 @@ export const PERSISTED_STATE_KEYS = [
   "activeChatId",
   "messagesByChatId",
   "model",
+  "reasoningMode",
   "sidebarOpen",
   "projectsCollapsed",
   "theme",

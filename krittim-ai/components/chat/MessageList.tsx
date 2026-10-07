@@ -24,9 +24,8 @@ import { selectActiveMessages, useChatStore } from '@/store/chatStore';
 const SPRING = { type: 'spring', stiffness: 340, damping: 30, mass: 0.8 } as const;
 
 const MODEL_ICONS: Record<ModelId, typeof Sparkles> = {
-  auto: Sparkles,
-  fast: Zap,
-  thinking: BrainCircuit,
+  r1_xenon: BrainCircuit,
+  s1_neon: Zap,
 };
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -224,8 +223,10 @@ function UserBubble({ message }: { message: ChatMessage }) {
 }
 
 function AssistantBubble({ message, streaming }: { message: ChatMessage; streaming: boolean }) {
+  const activeModelId = message.model ?? 'r1_xenon';
+  const Icon = MODEL_ICONS[activeModelId] ?? BrainCircuit;
+  const modelName = activeModelId === 's1_neon' ? 'Krittim S1 Neon' : 'Krittim R1 Xenon';
   const [copied, setCopied] = useState(false);
-  const Icon = MODEL_ICONS[message.model ?? 'auto'];
   return (
     <motion.div
       layout="position"
@@ -241,10 +242,12 @@ function AssistantBubble({ message, streaming }: { message: ChatMessage; streami
 
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex items-center gap-2 text-[11px] text-muted-foreground/70">
-          <span className="font-medium text-muted-foreground">Krittim</span>
-          <span className="flex items-center gap-1 rounded-full border border-hairline bg-surface-soft px-1.5 py-px font-mono text-[9px] uppercase tracking-wider">
-            <Icon className="size-2.5 text-brand" strokeWidth={2} /> {message.model ?? 'auto'}
-          </span>
+          <span className="font-medium text-foreground/90">{modelName}</span>
+          {message.mode && (
+            <span className="flex items-center gap-1 rounded-full border border-hairline bg-surface-soft px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-brand">
+              <Icon className="size-2.5 text-brand" strokeWidth={2} /> {message.mode}
+            </span>
+          )}
         </div>
 
         <div className="prose-krittim max-w-none text-[15px] leading-relaxed text-foreground/90">

@@ -14,9 +14,8 @@ import { MODEL_OPTIONS, type ModelId } from '@/lib/types';
 import { useChatStore } from '@/store/chatStore';
 
 const MODEL_ICONS: Record<ModelId, LucideIcon> = {
-  auto: Sparkles,
-  fast: Zap,
-  thinking: BrainCircuit,
+  r1_xenon: BrainCircuit,
+  s1_neon: Zap,
 };
 
 /**
@@ -64,7 +63,7 @@ export function ModelSwitcher() {
           transition={{ type: 'spring', stiffness: 420, damping: 30 }}
         >
           <div className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
-            Reasoning engine
+            Intelligence Engine
           </div>
 
           {MODEL_OPTIONS.map((m) => {

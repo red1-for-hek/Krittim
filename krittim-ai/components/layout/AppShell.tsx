@@ -76,7 +76,7 @@ export function AppShell() {
 
   /* ---- shared canvas (thread / welcome / empty) ---- */
   const canvas = (
-    <div className="relative flex min-h-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden">
       <AnimatePresence mode="wait" initial={false}>
         {hasThread ? (
           <motion.div
@@ -85,40 +85,31 @@ export function AppShell() {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -8 }}
             transition={{ duration: 0.24, ease: [0.22, 1, 0.36, 1] }}
-            className="min-h-0 flex-1"
+            className="flex min-h-0 flex-1 flex-col overflow-hidden"
           >
-            {switching ? <ThreadSkeleton /> : <MessageList />}
-          </motion.div>
-        ) : activeChatId ? (
-          /* chat selected but still empty → welcome scoped to that chat */
-          <motion.div
-            key="welcome-chat"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
-            className="min-h-0 flex-1"
-          >
-            <WelcomeScreen onPrompt={(p) => useChatStore.getState().sendMessage(p)} />
+            <div className="min-h-0 flex-1 overflow-hidden">
+              {switching ? <ThreadSkeleton /> : <MessageList />}
+            </div>
+            <div className="shrink-0">
+              <ChatInput centered={false} />
+            </div>
           </motion.div>
         ) : (
-          /* no chat at all → first-run empty state */
+          /* New chat / empty state — centered hero + centered chatbox */
           <motion.div
-            key="welcome-home"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            key="welcome-centered"
+            initial={{ opacity: 0, scale: 0.98 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
             transition={{ duration: 0.25 }}
-            className="min-h-0 flex-1"
+            className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-y-auto px-4 py-6"
           >
-            <WelcomeScreen
-              onPrompt={(p) => {
-                // Lazily create a fresh chat, then send — sendMessage would do both,
-                // but creating first guarantees the "New chat created" toast + pin.
-                useChatStore.getState().createChat(null);
-                useChatStore.getState().sendMessage(p);
-              }}
-            />
+            <div className="flex w-full max-w-3xl flex-col items-center gap-8 my-auto">
+              <WelcomeScreen />
+              <div className="w-full">
+                <ChatInput centered={true} />
+              </div>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -147,10 +138,9 @@ export function AppShell() {
         )}
 
         {/* ---------------------------- main column ---------------------------- */}
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
           <TopBar />
           {canvas}
-          <ChatInput />
         </div>
       </div>
 
