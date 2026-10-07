@@ -4,6 +4,13 @@ import type { LucideIcon } from "lucide-react";
 
 export type MessageRole = "user" | "assistant";
 
+/** Lightweight, serialisable descriptor for an attached file (preview only — nothing is uploaded yet). */
+export interface AttachmentMeta {
+  name: string;
+  size: number;
+  type: string;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -12,6 +19,26 @@ export interface ChatMessage {
   /** Which model produced this answer (assistant only). */
   model?: ModelId;
   pending?: boolean;
+  /** Files attached to this turn (mock — UI preview only). */
+  attachments?: AttachmentMeta[];
+}
+
+/* -------------------------------- Chats ----------------------------------- */
+
+export interface Chat {
+  id: string;
+  title: string;
+  projectId?: string | null;
+  pinned?: boolean;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface Project {
+  id: string;
+  name: string;
+  emoji: string;
+  color: string; // tailwind gradient stops, e.g. 'from-violet-500 to-fuchsia-500'
 }
 
 /* --------------------------------- Models --------------------------------- */
@@ -28,23 +55,33 @@ export interface ModelOption {
 export const MODEL_OPTIONS: readonly ModelOption[] = [
   {
     id: "auto",
-    name: "Auto",
+    name: "Krittim Auto",
     tagline: "Balanced",
-    description: "Krittim routes each prompt to the right engine automatically.",
+    description: "Routes every prompt to the right engine automatically.",
   },
   {
     id: "fast",
-    name: "Fast",
-    tagline: "Low latency",
+    name: "Krittim Fast",
+    tagline: "Lightning",
     description: "Snappy responses for everyday questions and quick drafts.",
   },
   {
     id: "thinking",
-    name: "Thinking",
+    name: "Krittim Thinking",
     tagline: "Deep reasoning",
     description: "Extended chain-of-thought for math, code and hard problems.",
   },
 ] as const;
+
+/* -------------------------------- Settings -------------------------------- */
+
+export type ThemePreference = "dark" | "light" | "system";
+
+export interface SettingsState {
+  theme: ThemePreference;
+  aiMemory: boolean;
+  streamResponses: boolean;
+}
 
 /* -------------------------------- Sidebar --------------------------------- */
 
@@ -53,11 +90,6 @@ export interface NavItem {
   label: string;
   icon: LucideIcon;
   badge?: string;
-}
-
-export interface HistoryGroup {
-  label: string;
-  items: { id: string; title: string; pinned?: boolean }[];
 }
 
 /* ------------------------------ Mock profile ------------------------------ */
