@@ -4,6 +4,30 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ---- Theme-aware surface & hairline tokens ------------------------------ */
+/* Components reference these instead of raw white-alpha so every hover,      */
+/* chip and divider re-tints correctly in light mode too.                     */
+:root,
+.dark {
+  --surface: oklch(1 0 0 / 3%);
+  --surface-soft: oklch(1 0 0 / 5%);
+  --surface-hover: oklch(1 0 0 / 8%);
+  --hairline: oklch(1 0 0 / 7%);
+}
+.light {
+  --surface: oklch(0.24 0.012 275 / 4%);
+  --surface-soft: oklch(0.24 0.012 275 / 6%);
+  --surface-hover: oklch(0.24 0.012 275 / 9%);
+  --hairline: oklch(0.24 0.012 275 / 9%);
+}
+
+@theme inline {
+  --color-surface: var(--surface);
+  --color-surface-soft: var(--surface-soft);
+  --color-surface-hover: var(--surface-hover);
+  --color-hairline: var(--hairline);
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -48,8 +72,11 @@
   --radius-xl: calc(var(--radius) + 4px);
 }
 
-/* ---- Krittim AI · Deep dark theme (single-theme app) ---- */
-:root {
+/* ---- Krittim AI · Theme tokens -------------------------------------------- */
+/* Dark is the design default; a full light palette lives under `.light` and   */
+/* is toggled via `html.dark` / absence-of-dark by the store's theme slice.    */
+:root,
+.dark {
   --radius: 0.75rem;
 
   --background: oklch(0.13 0.005 265);        /* near-black, faint cool tint */
@@ -94,6 +121,48 @@
   color-scheme: dark;
 }
 
+/* ---- Light mode — same architecture, inverted surfaces ---- */
+.light {
+  --background: oklch(0.985 0.002 265);
+  --foreground: oklch(0.22 0.012 275);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.22 0.012 275);
+  --popover: oklch(0.995 0.001 265);
+  --popover-foreground: oklch(0.22 0.012 275);
+
+  --primary: oklch(0.24 0.015 275);
+  --primary-foreground: oklch(0.985 0.002 265);
+
+  --secondary: oklch(0.95 0.004 265);
+  --secondary-foreground: oklch(0.26 0.012 275);
+  --muted: oklch(0.945 0.004 265);
+  --muted-foreground: oklch(0.5 0.02 270);
+  --accent: oklch(0.93 0.006 268);
+  --accent-foreground: oklch(0.22 0.012 275);
+  --destructive: oklch(0.58 0.22 26);
+
+  --border: oklch(0.24 0.012 275 / 10%);
+  --input: oklch(0.24 0.012 275 / 16%);
+  --ring: oklch(0.55 0.19 278);
+
+  --brand: oklch(0.55 0.19 278);
+  --brand-soft: oklch(0.62 0.15 255);
+
+  --glass: oklch(1 0 0 / 72%);
+  --glass-border: oklch(0.24 0.012 275 / 10%);
+
+  --sidebar: oklch(0.97 0.003 265 / 85%);
+  --sidebar-foreground: oklch(0.24 0.012 275);
+  --sidebar-primary: var(--brand);
+  --sidebar-primary-foreground: oklch(0.98 0.005 265);
+  --sidebar-accent: oklch(0.24 0.012 275 / 6%);
+  --sidebar-accent-foreground: oklch(0.22 0.012 275);
+  --sidebar-border: oklch(0.24 0.012 275 / 8%);
+  --sidebar-ring: var(--ring);
+
+  color-scheme: light;
+}
+
 @layer base {
   * {
     @apply border-border outline-none;
@@ -113,18 +182,29 @@
   /* Slim, refined scrollbars */
   * {
     scrollbar-width: thin;
-    scrollbar-color: oklch(1 0 0 / 12%) transparent;
+    scrollbar-color: light-dark(oklch(0.24 0.012 275 / 18%), oklch(1 0 0 / 12%)) transparent;
   }
   *::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
+    width: 8px;
+    height: 8px;
   }
   *::-webkit-scrollbar-thumb {
-    background: oklch(1 0 0 / 12%);
+    background: light-dark(oklch(0.24 0.012 275 / 18%), oklch(1 0 0 / 12%));
     border-radius: 9999px;
+    border: 2px solid transparent;
+    background-clip: content-box;
+    transition: background-color 0.2s ease;
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background: light-dark(oklch(0.24 0.012 275 / 32%), oklch(1 0 0 / 22%));
+    background-clip: content-box;
   }
   *::-webkit-scrollbar-track {
     background: transparent;
+  }
+  /* Gentle cross-fade when the palette flips */
+  html.theme-anim body {
+    transition: background-color 0.35s ease, color 0.35s ease;
   }
 }
 
@@ -137,7 +217,7 @@
     border-right: 1px solid var(--glass-border);
   }
   .glass-bar {
-    background: oklch(0.14 0.006 265 / 65%);
+    background: light-dark(oklch(0.99 0.002 265 / 68%), oklch(0.14 0.006 265 / 65%));
     backdrop-filter: blur(16px) saturate(140%);
     -webkit-backdrop-filter: blur(16px) saturate(140%);
     border-bottom: 1px solid var(--glass-border);

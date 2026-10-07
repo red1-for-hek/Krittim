@@ -128,9 +128,9 @@ export function WelcomeScreen({ onPrompt }: { onPrompt?: (prompt: string) => voi
             key={title}
             type="button"
             onClick={() => onPrompt?.(prompt)}
-            className="group flex items-start gap-3 rounded-2xl border border-white/[0.06] bg-white/[0.03] p-4 text-left backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/25 hover:bg-white/[0.05] hover:shadow-[0_12px_36px_-14px_oklch(0.72_0.17_278/40%)] active:translate-y-0"
+            className="group flex items-start gap-3 rounded-2xl border border-hairline bg-surface p-4 text-left backdrop-blur-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-brand/25 hover:bg-surface-soft hover:shadow-[0_12px_36px_-14px_oklch(0.72_0.17_278/40%)] active:translate-y-0"
           >
-            <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl border border-white/[0.07] bg-white/[0.04] text-muted-foreground transition-colors duration-300 group-hover:border-brand/30 group-hover:text-brand">
+            <span className="mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl border border-hairline bg-surface-soft text-muted-foreground transition-colors duration-300 group-hover:border-brand/30 group-hover:text-brand">
               <Icon className="size-4" strokeWidth={1.8} />
             </span>
             <span className="flex min-w-0 flex-col gap-0.5">

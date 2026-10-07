@@ -96,14 +96,35 @@ export interface NavItem {
 
 export interface MockUser {
   name: string;
+  email: string;
   handle: string;
   plan: string;
   initials: string;
 }
 
 export const MOCK_USER: MockUser = {
-  name: "Dev",
-  handle: "@dev",
-  plan: "Pro · BNMPC IT Club",
-  initials: "DV",
+  name: "Demo User",
+  email: "demo@krittim.ai",
+  handle: "@demo",
+  plan: "Free · BNMPC IT Club",
+  initials: "DU",
 };
+
+/* ------------------------------ persistence ------------------------------- */
+
+/** Keys of ChatState that are written to localStorage via the zustand persist middleware. */
+export const PERSISTED_STATE_KEYS = [
+  "chats",
+  "projects",
+  "activeChatId",
+  "messagesByChatId",
+  "model",
+  "sidebarOpen",
+  "projectsCollapsed",
+  "theme",
+  "aiMemory",
+  "streamResponses",
+] as const;
+
+/** localStorage entry holding the resolved + preferred theme (read by the inline script in layout). */
+export const THEME_STORAGE_KEY = "krittim-theme";

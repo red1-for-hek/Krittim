@@ -31,14 +31,24 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#09090b",
+  themeColor: [
+    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+  ],
   width: "device-width",
   initialScale: 1,
 };
 
 /**
+ * Pre-hydration theme bootstrap (runs before first paint → zero flash).
+ * Reads the resolved value we mirror into `krittim-theme` whenever the store
+ * syncs; falls back to the persisted preference, then OS setting, then dark.
+ */
+const THEME_BOOTSTRAP = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('krittim-theme');var r=t?JSON.parse(t).resolved:null;if(!r){var s=localStorage.getItem('krittim-chat-store');var p=s?JSON.parse(s).state.theme:null;r=p==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):(p||'dark')}d.classList.toggle('dark',r!=='light');d.style.colorScheme=r}catch(e){document.documentElement.classList.add('dark')}})();`;
+
+/**
  * RootLayout — Server Component
- * Owns fonts, metadata and the html/body shell only.
+ * Owns fonts, metadata, the anti-flash theme script and the html/body shell only.
  * All interactivity lives below in client components.
  */
 export default function RootLayout({
@@ -48,6 +58,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
+      <head>
+        {/* Blocking, inline, safe — Next allows string children for scripts like this. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
+      </head>
       <body
         className={`${inter.variable} ${instrumentSerif.variable} ${geistMono.variable} min-h-dvh bg-background font-sans text-foreground antialiased`}
       >

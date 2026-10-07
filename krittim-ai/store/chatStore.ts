@@ -1,20 +1,27 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 
-import type {
-  AttachmentMeta,
-  Chat,
-  ChatMessage,
-  ModelId,
-  Project,
-  ThemePreference,
+import {
+  PERSISTED_STATE_KEYS,
+  type AttachmentMeta,
+  type Chat,
+  type ChatMessage,
+  type ModelId,
+  type Project,
+  type ThemePreference,
 } from '@/lib/types';
 
 /* -------------------------------------------------------------------------- */
-/*  Krittim AI — global client state (Zustand)                                 */
+/*  Krittim AI — global client state (Zustand + localStorage persistence)      */
 /*                                                                            */
 /*  Single source of truth for: sidebar chrome, projects, multi-chat history   */
 /*  (chats + messagesByChatId), the active reasoning model, character-by-      */
-/*  character streaming simulation, and settings.                              */
+/*  character streaming simulation, theme + settings.                          */
+/*                                                                            */
+/*  Persisted slice (survives refresh): chats · activeChatId ·                 */
+/*  messagesByChatId · model · sidebar · projects · theme · ai toggles.        */
+/*  Ephemeral (never written to disk): isStreaming · stopRequested ·           */
+/*  settingsOpen · paletteOpen · threadKey.                                    */
 /* -------------------------------------------------------------------------- */
 
 let counter = 0;
@@ -190,6 +197,55 @@ function mockReply(prompt: string): string {
   return DEFAULT_REPLY;
 }
 
+/* ------------------------------ theme side-effect -------------------------- */
+
+export type ResolvedTheme = 'dark' | 'light';
+
+const MEDIA = '(prefers-color-scheme: dark)';
+
+/** Maps a stored preference to the concrete class applied on <html>. */
+export function resolveTheme(pref: ThemePreference): ResolvedTheme {
+  if (pref !== 'system') return pref;
+  if (typeof window === 'undefined') return 'dark';
+  return window.matchMedia(MEDIA).matches ? 'dark' : 'light';
+}
+
+/**
+ * Mirrors the store's `theme` preference onto <html class="dark"> and keeps it
+ * in sync with the OS when set to "system". The head script in layout.tsx does
+ * the same job pre-hydration so there is never a flash of the wrong palette.
+ */
+export function applyThemeEffect(): () => void {
+  const sync = () => {
+    const resolved = resolveTheme(useChatStore.getState().theme);
+    document.documentElement.classList.toggle('dark', resolved === 'dark');
+    try {
+      // Read by the anti-flash script on next load (JSON: {"state":{"theme":…}}).
+      const raw = localStorage.getItem('krittim-chat-store');
+      const parsed = raw ? JSON.parse(raw) : {};
+      localStorage.setItem(
+        'krittim-theme',
+        JSON.stringify({ ...parsed, resolved }),
+      );
+    } catch {
+      /* storage disabled — cosmetic only */
+    }
+  };
+
+  sync();
+  const unsub = useChatStore.subscribe((s, prev) => s.theme !== prev.theme && sync());
+  const mq = window.matchMedia(MEDIA);
+  mq.addEventListener('change', sync);
+  return () => {
+    unsub();
+    mq.removeEventListener('change', sync);
+  };
+}
+
+/** Cycle dark → light → dark (used by the command palette). */
+export const toggleTheme = () =>
+  useChatStore.setState((s) => ({ theme: resolveTheme(s.theme) === 'dark' ? 'light' : 'dark' }));
+
 /* -------------------------------- helpers --------------------------------- */
 
 const deriveTitle = (text: string): string =>
@@ -205,6 +261,10 @@ export interface ChatState {
 
   settingsOpen: boolean;
   setSettingsOpen: (open: boolean) => void;
+
+  /** Command palette (⌘K / Ctrl+K). Ephemeral — never persisted. */
+  paletteOpen: boolean;
+  setPaletteOpen: (open: boolean) => void;
 
   projectsCollapsed: boolean;
   toggleProjectsCollapsed: () => void;
@@ -229,6 +289,8 @@ export interface ChatState {
   renameChat: (id: string, title: string) => void;
   deleteChat: (id: string) => void;
   clearAllChats: () => void;
+  /** Danger-zone nuclear option — wipes every chat AND the localStorage snapshot. */
+  resetAllData: () => void;
   addMessage: (
     chatId: string,
     message: Omit<ChatMessage, 'id' | 'createdAt'> & Partial<Pick<ChatMessage, 'id' | 'createdAt'>>,
@@ -238,7 +300,7 @@ export interface ChatState {
   sendMessage: (content: string, attachments?: AttachmentMeta[]) => void;
   stopStreaming: () => void;
 
-  /* settings (mock persistence) */
+  /* settings (persisted) */
   theme: ThemePreference;
   aiMemory: boolean;
   streamResponses: boolean;
@@ -269,7 +331,9 @@ const patchMessageContent = (chatId: string, messageId: string, content: string)
     },
   }));
 
-export const useChatStore = create<ChatState>((set, get) => {
+export const useChatStore = create<ChatState>()(
+  persist(
+    (set, get) => {
   /** Char-by-char ticker that appends to the assistant bubble until complete or stopped. */
   function startCharStream(chatId: string, messageId: string, fullText: string) {
     let cursor = 0;
@@ -303,6 +367,9 @@ export const useChatStore = create<ChatState>((set, get) => {
 
     settingsOpen: false,
     setSettingsOpen: (settingsOpen) => set({ settingsOpen }),
+
+    paletteOpen: false,
+    setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
 
     projectsCollapsed: false,
     toggleProjectsCollapsed: () => set((s) => ({ projectsCollapsed: !s.projectsCollapsed })),
@@ -383,6 +450,21 @@ export const useChatStore = create<ChatState>((set, get) => {
         isStreaming: false,
         stopRequested: false,
       });
+    },
+
+    resetAllData: () => {
+      cancelInflight();
+      set({
+        chats: [],
+        messagesByChatId: {},
+        activeChatId: null,
+        isStreaming: false,
+        stopRequested: false,
+        settingsOpen: false,
+        paletteOpen: false,
+      });
+      // Drop the on-disk snapshot so a refresh starts genuinely blank.
+      void useChatStore.persist.clearStorage();
     },
 
     addMessage: (chatId, message) => {
@@ -488,8 +570,17 @@ export const useChatStore = create<ChatState>((set, get) => {
     setTheme: (theme) => set({ theme }),
     setAiMemory: (aiMemory) => set({ aiMemory }),
     setStreamResponses: (streamResponses) => set({ streamResponses }),
-  };
-});
+    };
+  },
+  {
+    name: 'krittim-chat-store',
+    version: 1,
+    // Whitelist — ephemeral chrome (streams, modals, threadKey) never hits localStorage.
+    partialize: (state) =>
+      Object.fromEntries(PERSISTED_STATE_KEYS.map((key) => [key, state[key]])) as Partial<ChatState>,
+  },
+  ),
+);
 
 /* -------------------------------- selectors ------------------------------- */
 
