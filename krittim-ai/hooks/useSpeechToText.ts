@@ -69,20 +69,20 @@ export interface UseSpeechToTextResult {
 }
 
 export function useSpeechToText({ lang, onTranscript }: UseSpeechToTextOptions = {}): UseSpeechToTextResult {
-  const [supported, setSupported] = useState(false);
+  const [supported] = useState(() => getRecognitionCtor() !== null);
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [volume, setVolume] = useState(0);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    setSupported(getRecognitionCtor() !== null);
-  }, []);
-
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const listeningRef = useRef(false); // readable inside stale event closures
   const onTranscriptRef = useRef(onTranscript);
-  onTranscriptRef.current = onTranscript;
+
+  // Update ref in an effect to avoid render-phase mutation
+  useEffect(() => {
+    onTranscriptRef.current = onTranscript;
+  }, [onTranscript]);
 
   /* Lazily construct the recognizer once, client-side only. */
   const ensureRecognition = useCallback((): SpeechRecognitionLike | null => {

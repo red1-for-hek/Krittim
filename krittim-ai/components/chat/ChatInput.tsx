@@ -18,7 +18,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import Image from 'next/image';
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { useCallback, useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
 
 import {
   DropdownMenu,
@@ -147,7 +147,10 @@ export function ChatInput({ centered = false }: ChatInputProps) {
     requestAnimationFrame(autosize);
   };
 
+  const enterToSend = useChatStore((s) => s.enterToSend);
+
   const onKeyDown = (event: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (!enterToSend) return;
     if (event.key === 'Enter' && !event.shiftKey && !event.nativeEvent.isComposing) {
       event.preventDefault();
       submit();
@@ -156,7 +159,6 @@ export function ChatInput({ centered = false }: ChatInputProps) {
 
   const activeMode = MODE_OPTIONS.find((m) => m.id === reasoningMode) ?? MODE_OPTIONS[0];
   const ActiveModeIcon = MODE_ICONS[activeMode.id];
-  const waveBars = useMemo(() => Array.from({ length: 22 }, (_, i) => i), []);
 
   return (
     <div className={cn('w-full', centered ? 'px-2' : 'px-3 pb-3 pt-1 md:px-6 md:pb-5')}>
@@ -201,7 +203,7 @@ export function ChatInput({ centered = false }: ChatInputProps) {
                         )}
                       </span>
                       <span className="flex min-w-0 flex-col">
-                        <span className="max-w-[160px] truncate text-xs font-medium text-foreground">
+                        <span className="max-w-[160px] sm:max-w-[200px] truncate text-xs font-medium text-foreground">
                           {file.meta.name}
                         </span>
                         <span className="font-mono text-[10px] text-muted-foreground/70">
@@ -245,22 +247,15 @@ export function ChatInput({ centered = false }: ChatInputProps) {
                 className="overflow-hidden border-b border-hairline"
               >
                 <div className="flex items-center gap-3 px-4 py-2">
-                  <motion.span
-                    className="size-2 rounded-full bg-red-500 shadow-[0_0_10px_oklch(0.62_0.21_25/90%)]"
-                    animate={{ opacity: [1, 0.35, 1], scale: [1, 0.85, 1] }}
-                    transition={{ duration: 1.15, repeat: Infinity, ease: 'easeInOut' }}
-                  />
+                  <span className="size-2 rounded-full bg-red-500 shadow-[0_0_10px_oklch(0.62_0.21_25/90%)] animate-pulse" />
                   <span className="flex h-4 items-end gap-[2px]" aria-hidden>
-                    {waveBars.map((i) => (
-                      <motion.i
+                    {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+                      <i
                         key={i}
-                        className="w-[3px] rounded-full bg-brand/80"
-                        animate={{ height: ['30%', `${20 + ((i * 37) % 80)}%`, '30%'] }}
-                        transition={{
-                          duration: 0.9 + (i % 5) * 0.12,
-                          repeat: Infinity,
-                          delay: i * 0.045,
-                          ease: 'easeInOut',
+                        className="w-[3px] rounded-full bg-brand/80 animate-[wave_1.2s_ease-in-out_infinite]"
+                        style={{
+                          animationDelay: `${i * 0.1}s`,
+                          height: `${25 + (i * 10) % 60}%`,
                         }}
                       />
                     ))}
@@ -293,9 +288,9 @@ export function ChatInput({ centered = false }: ChatInputProps) {
           </div>
 
           {/* Bottom Toolbar: File upload on LEFT, Model mode + Send on RIGHT */}
-          <div className="flex items-center justify-between px-3 pb-2.5 pt-1">
+          <div className="flex items-center justify-between px-3 pb-2.5 pt-1 gap-2 flex-wrap">
             {/* LEFT: File Upload & Voice */}
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 flex-shrink-0">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -329,7 +324,7 @@ export function ChatInput({ centered = false }: ChatInputProps) {
                 className={cn(
                   'grid size-8 place-items-center rounded-xl border border-hairline outline-none transition-all duration-200 active:scale-95',
                   speech.listening
-                    ? 'border-brand/40 bg-brand/15 text-brand shadow-[0_0_14px_-2px_oklch(0.72_0.17_278/70%)]'
+                    ? 'border-brand/40 bg-brand/15 text-brand shadow-[0_0_14px_-2px_oklch(0.62_0.18_155/70%)]'
                     : 'bg-surface text-muted-foreground hover:border-brand/30 hover:bg-surface-hover hover:text-foreground',
                   !speech.supported && 'opacity-40 cursor-not-allowed',
                 )}
@@ -339,7 +334,7 @@ export function ChatInput({ centered = false }: ChatInputProps) {
             </div>
 
             {/* RIGHT: Mode Selector (Auto / Lightning / Thinking) + Send / Stop */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-shrink-0">
               {/* Reasoning Mode Switcher */}
               <DropdownMenu open={modeMenuOpen} onOpenChange={setModeMenuOpen}>
                 <DropdownMenuTrigger
@@ -431,7 +426,7 @@ export function ChatInput({ centered = false }: ChatInputProps) {
         <div className="mt-2 flex items-center justify-between px-2 text-[11px] text-muted-foreground/60">
           <span className="flex items-center gap-1.5">
             <AudioLines className="size-3" strokeWidth={1.8} />
-            Enter to send · Shift+Enter for new line
+            {enterToSend ? 'Enter to send · Shift+Enter for new line' : 'Press send button · Shift+Enter for new line'}
           </span>
           <AnimatePresence>
             {speech.error && (

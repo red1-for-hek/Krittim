@@ -1,15 +1,12 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
-import { Check, Pencil, Search, X } from 'lucide-react';
+import { Check, ChevronDown, Pencil, Plus, Search, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 
 import { bucketFor, useChatStore } from '@/store/chatStore';
 import type { Chat } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
-
-/* ------------------------------ small utils ------------------------------- */
 
 const relativeTime = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' });
 
@@ -24,21 +21,15 @@ function timeAgo(timestamp: number, now: number): string {
 
 function useCurrentTime() {
   const [now, setNow] = useState<number | null>(null);
-
   useEffect(() => {
-    const update = () => setNow(Date.now());
-    const initialUpdate = window.setTimeout(update, 0);
-    const interval = window.setInterval(update, 60_000);
-    return () => {
-      window.clearTimeout(initialUpdate);
-      window.clearInterval(interval);
-    };
+    setNow(Date.now());
+    const interval = window.setInterval(() => setNow(Date.now()), 60_000);
+    return () => window.clearInterval(interval);
   }, []);
-
   return now;
 }
 
-/* --------------------------------- row ------------------------------------ */
+/* ------------------------------- row ------------------------------- */
 
 function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
   const isActive = useChatStore((s) => s.activeChatId === chat.id);
@@ -53,9 +44,8 @@ function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
 
   useEffect(() => {
     if (renaming) {
-      setDraft(chat.title);
-      // Focus + select once the inline input mounts.
       requestAnimationFrame(() => {
+        setDraft(chat.title);
         inputRef.current?.focus();
         inputRef.current?.select();
       });
@@ -69,20 +59,9 @@ function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
   };
 
   return (
-    <motion.li
-      layout
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: -8, transition: { duration: 0.15 } }}
-      transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-      className="group/row relative"
-    >
+    <li className="anim-fade-in group/row relative">
       {isActive && (
-        <motion.span
-          layoutId="chat-active-pill"
-          className="absolute inset-0 rounded-xl border border-brand/20 bg-brand/[0.10] shadow-[inset_0_0_20px_oklch(0.72_0.17_278/8%)]"
-          transition={{ type: 'spring', stiffness: 380, damping: 32 }}
-        />
+        <span className="absolute inset-0 rounded-xl border border-brand/20 bg-brand/[0.10]" aria-hidden />
       )}
 
       <div className="relative flex items-center gap-1 pr-1">
@@ -117,15 +96,12 @@ function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
               type="button"
               onClick={() => selectChat(chat.id)}
               className={cn(
-                'flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-1.5 text-left text-[13px] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-brand/40',
+                'flex min-w-0 flex-1 items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-brand/40',
                 isActive ? 'text-foreground' : 'text-muted-foreground group-hover/row:text-foreground',
               )}
             >
-              {chat.pinned && (
-                <span className="size-1.5 shrink-0 rounded-full bg-brand shadow-[0_0_8px_oklch(0.72_0.17_278/80%)]" />
-              )}
+              {chat.pinned && <span className="size-1.5 shrink-0 rounded-full bg-brand" />}
               <span className="truncate">{chat.title}</span>
-              {/* timestamp collapses on hover so action icons have room */}
               <span
                 className={cn(
                   'ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/50 transition-opacity duration-150 group-hover/row:opacity-0',
@@ -136,10 +112,9 @@ function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
               </span>
             </button>
 
-            {/* hover actions — rename & delete */}
             <div
               className={cn(
-                'flex shrink-0 items-center gap-0.5 transition-all duration-150',
+                'flex shrink-0 items-center gap-0.5 transition-opacity duration-150',
                 'pointer-events-none opacity-0 group-hover/row:pointer-events-auto group-hover/row:opacity-100',
                 'focus-within:pointer-events-auto focus-within:opacity-100',
               )}
@@ -148,7 +123,7 @@ function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
                 type="button"
                 aria-label={`Rename chat — ${chat.title}`}
                 onClick={() => setRenaming(true)}
-                className="grid size-6 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40 active:scale-90"
+                className="grid size-7 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40 active:scale-90"
               >
                 <Pencil className="size-3" strokeWidth={2} />
               </button>
@@ -156,7 +131,7 @@ function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
                 type="button"
                 aria-label={`Delete chat — ${chat.title}`}
                 onClick={() => setConfirmingDelete(true)}
-                className="grid size-6 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-red-500/15 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-red-500/40 active:scale-90"
+                className="grid size-7 place-items-center rounded-md text-muted-foreground outline-none transition-colors hover:bg-red-500/15 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-red-500/40 active:scale-90"
               >
                 <X className="size-3" strokeWidth={2.4} />
               </button>
@@ -165,28 +140,26 @@ function ChatRow({ chat, now }: { chat: Chat; now: number | null }) {
         )}
       </div>
 
-      {/* two-step destructive confirmation — nothing deletes on a stray click */}
       <ConfirmDialog
         open={confirmingDelete}
         onOpenChange={setConfirmingDelete}
         title="Delete this chat?"
         description={
           <>
-            “{chat.title}” and every message inside it will be removed from this browser.
-            This action cannot be undone.
+            “{chat.title}” and every message inside it will be removed from this browser. This
+            action cannot be undone.
           </>
         }
         confirmLabel="Delete chat"
         destructive
         onConfirm={() => deleteChat(chat.id)}
       />
-    </motion.li>
+    </li>
   );
 }
 
-/* ---------------------------- projects group ------------------------------ */
+/* --------------------------- projects --------------------------- */
 
-/** Collapsible project section — each project folds open to reveal its chats. */
 export function ProjectsSection() {
   const projects = useChatStore((s) => s.projects);
   const chats = useChatStore((s) => s.chats);
@@ -199,134 +172,92 @@ export function ProjectsSection() {
 
   return (
     <div className="px-3">
-      {/* section header — click to collapse the whole group */}
       <button
         type="button"
         onClick={toggleCollapsed}
         aria-expanded={!collapsed}
         className="group/head flex w-full items-center gap-2 rounded-lg px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60 outline-none transition-colors hover:text-muted-foreground focus-visible:ring-2 focus-visible:ring-brand/40"
       >
-        <motion.span
-          animate={{ rotate: collapsed ? -90 : 0 }}
-          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-          className="grid place-items-center"
-        >
-          <ChevronDownIcon />
-        </motion.span>
+        <ChevronDown
+          className={cn('size-3 transition-transform duration-200', collapsed && '-rotate-90')}
+          strokeWidth={2.2}
+        />
         Projects
         <span className="ml-auto rounded-full bg-surface-hover px-1.5 py-0.5 font-mono text-[9px] normal-case tracking-normal text-muted-foreground/70">
           {projects.length}
         </span>
       </button>
 
-      <AnimatePresence initial={false}>
-        {!collapsed && (
-          <motion.div
-            key="projects-body"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden"
-          >
-            <ul className="space-y-0.5 pb-1">
-              {projects.map((project) => {
-                const projectChats = chats.filter((c) => c.projectId === project.id);
-                const isOpen = openProjects[project.id];
-
-                return (
-                  <li key={project.id}>
-                    <div className="flex items-center gap-1">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setOpenProjects((prev) => ({ ...prev, [project.id]: !prev[project.id] }))
-                        }
-                        aria-expanded={isOpen}
-                        className="group/proj flex min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-left text-[13px] text-muted-foreground outline-none transition-colors hover:bg-surface-soft hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40"
+      {!collapsed && (
+        <div className="anim-fade-in overflow-hidden">
+          <ul className="space-y-0.5 pb-1">
+            {projects.map((project) => {
+              const projectChats = chats.filter((c) => c.projectId === project.id);
+              const isOpen = openProjects[project.id];
+              return (
+                <li key={project.id}>
+                  <div className="group/proj flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setOpenProjects((prev) => ({ ...prev, [project.id]: !prev[project.id] }))}
+                      aria-expanded={!!isOpen}
+                      className="flex min-w-0 flex-1 items-center gap-2 rounded-lg px-3 py-1.5 text-left text-[13px] text-muted-foreground outline-none transition-colors hover:bg-surface-soft hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40"
+                    >
+                      <span
+                        className={cn(
+                          'grid size-5 shrink-0 place-items-center rounded-md bg-gradient-to-br text-[10px]',
+                          project.color,
+                        )}
                       >
-                        <span
-                          className={cn(
-                            'grid size-5 shrink-0 place-items-center rounded-md bg-gradient-to-br text-[10px]',
-                            project.color,
-                          )}
-                        >
-                          {project.emoji}
-                        </span>
-                        <span className="truncate font-medium">{project.name}</span>
-                        <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/50">
-                          {projectChats.length}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={`New chat in ${project.name}`}
-                        onClick={() => createChat(project.id)}
-                        className="grid size-6 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 outline-none transition-all hover:bg-surface-hover hover:text-foreground focus-visible:opacity-100 group-hover/proj:opacity-100 active:scale-90"
-                      >
-                        <PlusIcon />
-                      </button>
-                    </div>
+                        {project.emoji}
+                      </span>
+                      <span className="truncate font-medium">{project.name}</span>
+                      <span className="ml-auto shrink-0 font-mono text-[10px] text-muted-foreground/50">
+                        {projectChats.length}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`New chat in ${project.name}`}
+                      onClick={() => createChat(project.id)}
+                      className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 outline-none transition-all hover:bg-surface-hover hover:text-foreground focus-visible:opacity-100 group-hover/proj:opacity-100 active:scale-90"
+                    >
+                      <Plus className="size-3" strokeWidth={2.2} />
+                    </button>
+                  </div>
 
-                    <AnimatePresence initial={false}>
-                      {isOpen && projectChats.length > 0 && (
-                        <motion.ul
-                          key={`${project.id}-chats`}
-                          initial={{ opacity: 0, height: 0 }}
-                          animate={{ opacity: 1, height: 'auto' }}
-                          exit={{ opacity: 0, height: 0 }}
-                          transition={{ duration: 0.2, ease: [0.22, 1, 0.36, 1] }}
-                          className="ml-4 overflow-hidden border-l border-hairline pl-1"
-                        >
-                          {projectChats
-                            .slice()
-                            .sort((a, b) => b.updatedAt - a.updatedAt)
-                            .map((chat) => (
-                              <ChatRow key={chat.id} chat={chat} now={now} />
-                            ))}
-                        </motion.ul>
-                      )}
-                    </AnimatePresence>
-                  </li>
-                );
-              })}
-            </ul>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  {isOpen && projectChats.length > 0 && (
+                    <ul className="anim-fade-in ml-4 border-l border-hairline pl-1">
+                      {projectChats
+                        .slice()
+                        .sort((a, b) => b.updatedAt - a.updatedAt)
+                        .map((chat) => (
+                          <ChatRow key={chat.id} chat={chat} now={now} />
+                        ))}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          {projects.length === 0 && (
+            <p className="px-3 pb-2 text-[11px] leading-relaxed text-muted-foreground/50">
+              Group related chats into projects — coming with sync.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
 
-function ChevronDownIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="size-3">
-      <path d="m6 9 6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}
-
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.2} className="size-3">
-      <path d="M12 5v14M5 12h14" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-/* ------------------------------- chat list -------------------------------- */
+/* ---------------------------- chat list ---------------------------- */
 
 const BUCKET_ORDER = ['Today', 'Yesterday', 'Previous 7 days', 'Previous 30 days', 'Older'] as const;
 
-/**
- * ChatList — searchable, grouped, live-updating conversation history.
- * Active chat gets a spring "layoutId" pill; rows expose rename/delete on hover.
- * Project-owned chats are hidden here (they live inside ProjectsSection).
- */
 export function ChatList() {
   const chats = useChatStore((s) => s.chats);
   const [query, setQuery] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const now = useCurrentTime();
 
   const q = query.trim().toLowerCase();
@@ -343,58 +274,32 @@ export function ChatList() {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      {/* search toggle icon */}
-      <div className="flex items-center gap-1 px-3 pb-1">
-        <button
-          type="button"
-          onClick={() => { setShowSearch((v) => !v); if (showSearch) setQuery(''); }}
-          aria-label={showSearch ? 'Hide search' : 'Search conversations'}
-          className="grid size-7 place-items-center rounded-lg text-muted-foreground/60 transition-colors hover:bg-surface-hover hover:text-foreground"
-        >
-          <Search className="size-3.5" strokeWidth={1.8} />
-        </button>
+      <div className="px-3 pb-2">
+        <div className="relative">
+          <Search
+            className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+            strokeWidth={1.8}
+          />
+          <input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search chats…"
+            aria-label="Search conversations"
+            className="h-9 w-full rounded-xl border border-hairline bg-surface-soft pl-9 pr-8 text-[13px] text-foreground outline-none transition-colors duration-150 placeholder:text-muted-foreground/60 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+          />
+          {query && (
+            <button
+              type="button"
+              aria-label="Clear search"
+              onClick={() => setQuery('')}
+              className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
+            >
+              <X className="size-3" strokeWidth={2.2} />
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* collapsible search input */}
-      <AnimatePresence initial={false}>
-        {showSearch && (
-          <motion.div
-            key="search-bar"
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
-            className="overflow-hidden px-3 pb-2"
-          >
-            <div className="relative">
-              <Search
-                className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
-                strokeWidth={1.8}
-              />
-              <input
-                autoFocus
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search conversations…"
-                aria-label="Search conversations"
-                className="h-9 w-full rounded-xl border border-hairline bg-surface-soft pl-9 pr-8 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/60 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
-              />
-              {query && (
-                <button
-                  type="button"
-                  aria-label="Clear search"
-                  onClick={() => setQuery('')}
-                  className="absolute right-2.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-md text-muted-foreground transition-colors hover:bg-surface-hover hover:text-foreground"
-                >
-                  <X className="size-3" strokeWidth={2.2} />
-                </button>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* grouped rows */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 pb-3">
         {groups.length === 0 ? (
           <div className="flex flex-col items-center gap-2 px-4 py-10 text-center">
@@ -402,14 +307,12 @@ export function ChatList() {
             <p className="text-xs leading-relaxed text-muted-foreground">
               {query ? (
                 <>
-                  No conversations match “{query}”.
-                  <br />
+                  No conversations match “{query}”.<br />
                   Try a different phrase.
                 </>
               ) : (
                 <>
-                  No conversations yet.
-                  <br />
+                  No conversations yet.<br />
                   Start a new chat above.
                 </>
               )}
@@ -422,11 +325,9 @@ export function ChatList() {
                 {group.label}
               </div>
               <ul className="space-y-0.5">
-                <AnimatePresence initial={false}>
-                  {group.items.map((chat) => (
-                    <ChatRow key={chat.id} chat={chat} now={now} />
-                  ))}
-                </AnimatePresence>
+                {group.items.map((chat) => (
+                  <ChatRow key={chat.id} chat={chat} now={now} />
+                ))}
               </ul>
             </div>
           ))

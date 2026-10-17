@@ -8,7 +8,6 @@ import {
   MessagesSquare,
   Search,
   Settings2,
-  Sparkles,
   SquarePen,
   SunMoon,
   Zap,
@@ -77,9 +76,16 @@ export function CommandPalette() {
   /* Reset to a clean slate each time the palette opens. */
   useEffect(() => {
     if (open) {
-      setQuery('');
-      setActiveIndex(0);
-      requestAnimationFrame(() => inputRef.current?.focus());
+      requestAnimationFrame(() => {
+        setQuery('');
+        setActiveIndex(0);
+        inputRef.current?.focus();
+      });
+    } else {
+      requestAnimationFrame(() => {
+        setQuery('');
+        setActiveIndex(0);
+      });
     }
   }, [open]);
 
@@ -155,7 +161,9 @@ export function CommandPalette() {
 
   // Keep selection in range as the query narrows the list.
   useEffect(() => {
-    setActiveIndex((i) => Math.min(i, Math.max(filtered.length - 1, 0)));
+    requestAnimationFrame(() => {
+      setActiveIndex((i) => Math.min(i, Math.max(filtered.length - 1, 0)));
+    });
   }, [filtered.length]);
 
   const runAction = (action: PaletteAction) => {
@@ -341,7 +349,7 @@ export function CommandPalette() {
               <span className="flex items-center gap-1.5">
                 <ArrowUpDown className="size-3" strokeWidth={2} /> to navigate
               </span>
-              <span className="ml-auto font-serif-display italic">Krittim AI</span>
+              <span className="ml-auto font-serif-display italic text-krittim-gradient">Krittim AI</span>
             </div>
           </motion.div>
         </motion.div>

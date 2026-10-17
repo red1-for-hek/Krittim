@@ -1,27 +1,16 @@
 'use client';
 
-import { AnimatePresence, motion } from 'framer-motion';
 import { BrainCircuit, Check, Copy, Sparkles, Zap } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
-import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 import { cn } from '@/lib/utils';
 import type { ChatMessage, ModelId } from '@/lib/types';
 import { selectActiveMessages, useChatStore } from '@/store/chatStore';
 
-/* -------------------------------------------------------------------------- */
-/*  MessageList — the thread canvas                                            */
-/*                                                                            */
-/*  • User turns: right-aligned frosted bubbles.                              */
-/*  • AI turns: glowing "K" avatar + react-markdown (GFM tables, lists, code). */
-/*  • Code blocks: dark framed card, language rail, hover copy button.        */
-/*  • Entrance: staggered fade/slide springs; auto-scroll pinned to newest.   */
-/* -------------------------------------------------------------------------- */
-
-const SPRING = { type: 'spring', stiffness: 340, damping: 30, mass: 0.8 } as const;
+/* Lightweight thread canvas — no animation lib, no Prism.
+   Code = plain <pre> in mono. Cheap, instant, fine on low-end phones. */
 
 const MODEL_ICONS: Record<ModelId, typeof Sparkles> = {
   r1_xenon: BrainCircuit,
@@ -30,7 +19,7 @@ const MODEL_ICONS: Record<ModelId, typeof Sparkles> = {
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
 
-/* ------------------------------- code block -------------------------------- */
+/* ------------------------- code block (no Prism) ------------------------- */
 
 function CodeBlock({ className, children }: { className?: string; children: React.ReactNode }) {
   const match = /language-([\w-]+)/.exec(className ?? '');
@@ -38,7 +27,6 @@ function CodeBlock({ className, children }: { className?: string; children: Reac
   const code = String(children).replace(/\n$/, '');
   const [copied, setCopied] = useState(false);
 
-  // Inline code (single short line without fence language) renders as a chip.
   if (!match && code.length < 60 && !code.includes('\n')) {
     return (
       <code className="rounded-md border border-hairline bg-surface-hover px-1.5 py-0.5 font-mono text-[0.85em] text-brand-soft">
@@ -48,8 +36,7 @@ function CodeBlock({ className, children }: { className?: string; children: Reac
   }
 
   return (
-    <div className="group/code relative my-3 overflow-hidden rounded-xl border border-hairline bg-[#0b0c10] shadow-[0_10px_40px_-18px_black]">
-      {/* header rail */}
+    <div className="group/code my-3 overflow-hidden rounded-xl border border-hairline bg-[#0b0c10]">
       <div className="flex items-center gap-2 border-b border-white/[0.06] bg-white/[0.03] px-3.5 py-2">
         <span className="flex gap-1.5" aria-hidden>
           <i className="size-2.5 rounded-full bg-[#ff5f57]/80" />
@@ -68,15 +55,15 @@ function CodeBlock({ className, children }: { className?: string; children: Reac
               setCopied(true);
               setTimeout(() => setCopied(false), 1600);
             } catch {
-              /* clipboard blocked — no-op */
+              /* clipboard blocked */
             }
           }}
           className={cn(
-            'ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[10px] outline-none transition-all duration-200',
+            'ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[10px] outline-none transition-colors duration-150',
             'focus-visible:ring-2 focus-visible:ring-brand/50',
             copied
               ? 'bg-emerald-500/15 text-emerald-400 opacity-100'
-              : 'text-zinc-400 opacity-0 hover:bg-white/[0.06] hover:text-zinc-200 group-hover/code:opacity-100',
+              : 'text-zinc-400 opacity-0 hover:bg-white/[0.06] hover:text-zinc-200 group-hover/code:opacity-100 focus-visible:opacity-100',
           )}
         >
           {copied ? (
@@ -90,26 +77,16 @@ function CodeBlock({ className, children }: { className?: string; children: Reac
           )}
         </button>
       </div>
-
-      <SyntaxHighlighter
-        language={language}
-        style={oneDark}
-        customStyle={{
-          margin: 0,
-          background: 'transparent',
-          padding: '1rem 1.25rem',
-          fontSize: '0.8125rem',
-          lineHeight: 1.65,
-        }}
-        codeTagProps={{ style: { fontFamily: 'var(--font-geist-mono), ui-monospace, monospace' } }}
-      >
-        {code}
-      </SyntaxHighlighter>
+      <div className="overflow-x-auto">
+        <pre className="m-0 bg-transparent px-4 py-3.5 font-mono text-[13px] leading-[1.7] text-zinc-200">
+          <code>{code}</code>
+        </pre>
+      </div>
     </div>
   );
 }
 
-/* ------------------------------ markdown map ------------------------------- */
+/* --------------------------- markdown map --------------------------- */
 
 const markdownComponents = {
   p: ({ children }: { children?: React.ReactNode }) => (
@@ -167,27 +144,25 @@ const markdownComponents = {
     const isBlock = String(children).includes('\n') || /language-/.test(className ?? '');
     if (isBlock) return <CodeBlock className={className}>{children}</CodeBlock>;
     return (
-      <code className="rounded-md border border-hairline bg-surface-hover px-1.5 py-0.5 font-mono text-[0.85em] text-brand-soft" {...rest}>
+      <code
+        className="rounded-md border border-hairline bg-surface-hover px-1.5 py-0.5 font-mono text-[0.85em] text-brand-soft"
+        {...rest}
+      >
         {children}
       </code>
     );
   },
 };
 
-/* --------------------------------- bubbles -------------------------------- */
+/* ------------------------------ bubbles ------------------------------ */
 
-function UserBubble({ message }: { message: ChatMessage }) {
+const UserBubble = memo(function UserBubble({ message }: { message: ChatMessage }) {
   const [copied, setCopied] = useState(false);
+  const showTimestamps = useChatStore((s) => s.showTimestamps);
   return (
-    <motion.div
-      layout="position"
-      initial={{ opacity: 0, y: 18, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={SPRING}
-      className="group/msg flex flex-col items-end"
-    >
+    <div className="msg-enter group/msg flex flex-col items-end">
       {message.attachments && message.attachments.length > 0 && (
-        <div className="mb-1.5 flex max-w-[85%] flex-wrap justify-end gap-1.5">
+        <div className="mb-1.5 flex w-full max-w-[90%] flex-wrap justify-end gap-1.5">
           {message.attachments.map((a) => (
             <span
               key={a.name}
@@ -198,10 +173,10 @@ function UserBubble({ message }: { message: ChatMessage }) {
           ))}
         </div>
       )}
-      <div className="max-w-[85%] rounded-2xl rounded-br-md border border-white/[0.08] bg-white/[0.07] px-4 py-2.5 text-[15px] leading-relaxed text-foreground shadow-[0_8px_30px_-14px_black] backdrop-blur-md sm:max-w-[75%]">
-        <p className="whitespace-pre-wrap">{message.content}</p>
+      <div className="w-full max-w-[92%] rounded-2xl rounded-br-md border border-white/[0.08] bg-white/[0.07] px-4 py-2.5 text-[15px] leading-relaxed text-foreground sm:max-w-[80%] sm:text-base md:max-w-[70%] lg:max-w-[65%]">
+        <p className="whitespace-pre-wrap break-words">{message.content}</p>
       </div>
-      <div className="mt-1 flex items-center gap-2 opacity-0 transition-opacity duration-200 group-hover/msg:opacity-100">
+      <div className="mt-1 flex items-center gap-2 opacity-0 transition-opacity duration-150 group-hover/msg:opacity-100 focus-within:opacity-100">
         <button
           type="button"
           aria-label="Copy message"
@@ -214,43 +189,46 @@ function UserBubble({ message }: { message: ChatMessage }) {
         >
           {copied ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
         </button>
-        <time className="font-mono text-[10px] text-muted-foreground/50">
-          {timeFmt.format(message.createdAt)}
-        </time>
+        {showTimestamps && (
+          <time className="font-mono text-[10px] text-muted-foreground/50">
+            {timeFmt.format(message.createdAt)}
+          </time>
+        )}
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 
-function AssistantBubble({ message, streaming }: { message: ChatMessage; streaming: boolean }) {
+const AssistantBubble = memo(function AssistantBubble({
+  message,
+  streaming,
+}: {
+  message: ChatMessage;
+  streaming: boolean;
+}) {
   const activeModelId = message.model ?? 'r1_xenon';
   const Icon = MODEL_ICONS[activeModelId] ?? BrainCircuit;
   const modelName = activeModelId === 's1_neon' ? 'Krittim S1 Neon' : 'Krittim R1 Xenon';
   const [copied, setCopied] = useState(false);
+  const showTimestamps = useChatStore((s) => s.showTimestamps);
+
   return (
-    <motion.div
-      layout="position"
-      initial={{ opacity: 0, y: 18, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={SPRING}
-      className="group/msg flex gap-3"
-    >
-      {/* K avatar */}
-      <div className="relative mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand via-brand to-brand-soft shadow-[0_0_18px_-4px_oklch(0.72_0.17_278/70%)]">
+    <div className="msg-enter group/msg flex w-full gap-3">
+      <div className="relative mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand via-brand to-brand-soft">
         <span className="font-serif-display text-[15px] italic leading-none text-white">K</span>
       </div>
 
       <div className="min-w-0 flex-1">
-        <div className="mb-1 flex items-center gap-2 text-[11px] text-muted-foreground/70">
-          <span className="font-medium text-foreground/90">{modelName}</span>
+        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70">
+          <span className="truncate font-medium text-foreground/90">{modelName}</span>
           {message.mode && (
-            <span className="flex items-center gap-1 rounded-full border border-hairline bg-surface-soft px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-brand">
+            <span className="flex shrink-0 items-center gap-1 rounded-full border border-hairline bg-surface-soft px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-brand">
               <Icon className="size-2.5 text-brand" strokeWidth={2} /> {message.mode}
             </span>
           )}
         </div>
 
-        <div className="prose-krittim max-w-none text-[15px] leading-relaxed text-foreground/90">
+        <div className="prose-krittim max-w-none text-[15px] leading-relaxed text-foreground/90 sm:text-base">
           {message.content === '' && streaming ? (
             <ThinkingDots />
           ) : (
@@ -259,12 +237,12 @@ function AssistantBubble({ message, streaming }: { message: ChatMessage; streami
             </ReactMarkdown>
           )}
           {streaming && message.content !== '' && (
-            <span className="ml-0.5 inline-block h-[1.1em] w-[3px] translate-y-[2px] animate-pulse rounded-full bg-brand shadow-[0_0_8px_oklch(0.72_0.17_278/90%)]" />
+            <span className="stream-caret ml-0.5 inline-block h-[1.1em] w-[3px] translate-y-[2px] rounded-full bg-brand" />
           )}
         </div>
 
         {!streaming && message.content !== '' && (
-          <div className="mt-1.5 flex items-center gap-2 opacity-0 transition-opacity duration-200 group-hover/msg:opacity-100">
+          <div className="mt-1.5 flex items-center gap-2 opacity-0 transition-opacity duration-150 group-hover/msg:opacity-100 focus-within:opacity-100">
             <button
               type="button"
               aria-label="Copy response"
@@ -277,35 +255,33 @@ function AssistantBubble({ message, streaming }: { message: ChatMessage; streami
             >
               {copied ? <Check className="size-3 text-emerald-400" /> : <Copy className="size-3" />}
             </button>
-            <time className="font-mono text-[10px] text-muted-foreground/50">
-              {timeFmt.format(message.createdAt)}
-            </time>
+            {showTimestamps && (
+              <time className="font-mono text-[10px] text-muted-foreground/50">
+                {timeFmt.format(message.createdAt)}
+              </time>
+            )}
           </div>
         )}
       </div>
-    </motion.div>
+    </div>
   );
-}
+});
 
 function ThinkingDots() {
   return (
     <span className="inline-flex items-center gap-1.5 py-1" aria-label="Krittim is thinking">
-      {[0, 1, 2].map((i) => (
-        <motion.span
-          key={i}
-          className="size-1.5 rounded-full bg-brand/80"
-          animate={{ opacity: [0.25, 1, 0.25], y: [0, -2, 0] }}
-          transition={{ duration: 1.1, repeat: Infinity, delay: i * 0.16, ease: 'easeInOut' }}
-        />
-      ))}
+      <span className="flex gap-1">
+        <span className="thinking-dot size-1.5 rounded-full bg-brand/80" style={{ '--d': '0ms' } as React.CSSProperties} />
+        <span className="thinking-dot size-1.5 rounded-full bg-brand/80" style={{ '--d': '150ms' } as React.CSSProperties} />
+        <span className="thinking-dot size-1.5 rounded-full bg-brand/80" style={{ '--d': '300ms' } as React.CSSProperties} />
+      </span>
       <span className="ml-1 text-xs italic text-muted-foreground/70">thinking…</span>
     </span>
   );
 }
 
-/* ------------------------------- skeleton ---------------------------------- */
+/* ----------------------------- skeleton ----------------------------- */
 
-/** Shimmer placeholder shown briefly while a chat thread switches in. */
 export function ThreadSkeleton() {
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8" aria-hidden>
@@ -315,15 +291,13 @@ export function ThreadSkeleton() {
         { selfEnd: false, lines: 4 },
       ].map((row, i) => (
         <div key={i} className={cn('flex gap-3', row.selfEnd && 'justify-end')}>
-          {!row.selfEnd && (
-            <div className="size-8 shrink-0 animate-pulse rounded-xl bg-surface-hover" />
-          )}
+          {!row.selfEnd && <div className="skeleton-shimmer size-8 shrink-0 rounded-xl" />}
           <div className={cn('space-y-2', row.selfEnd ? 'w-2/3' : 'w-4/5')}>
             {Array.from({ length: row.lines }).map((_, j) => (
               <div
                 key={j}
-                className="h-3 animate-pulse rounded-full bg-surface-hover"
-                style={{ width: `${88 - j * 12}%`, animationDelay: `${(i + j) * 90}ms` }}
+                className="skeleton-shimmer h-3 rounded-full"
+                style={{ width: `${88 - j * 12}%` }}
               />
             ))}
           </div>
@@ -333,23 +307,17 @@ export function ThreadSkeleton() {
   );
 }
 
-/* ------------------------------- main list --------------------------------- */
+/* ------------------------------ main list ------------------------------ */
 
-/**
- * MessageList — reads the active thread from Zustand, animates every turn in,
- * and keeps the viewport pinned to the newest token while streaming.
- */
 export function MessageList() {
   const messages = useChatStore(selectActiveMessages);
   const isStreaming = useChatStore((s) => s.isStreaming);
   const threadKey = useChatStore((s) => s.threadKey);
 
   const scrollRef = useRef<HTMLDivElement>(null);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   const lastIndex = messages.length - 1;
 
-  // rAF-batched pin-to-bottom — cheap even at char-stream cadence (~55fps writes).
   useEffect(() => {
     let raf = 0;
     const pin = () => {
@@ -362,34 +330,26 @@ export function MessageList() {
 
   const content = useMemo(
     () =>
-      messages.map((m, i) => (
-        <UserOrAssistant key={m.id} message={m} streaming={isStreaming && i === lastIndex} />
-      )),
+      messages.map((m, i) =>
+        m.role === 'user' ? (
+          <UserBubble key={m.id} message={m} />
+        ) : (
+          <AssistantBubble key={m.id} message={m} streaming={isStreaming && i === lastIndex} />
+        ),
+      ),
     [messages, isStreaming, lastIndex],
   );
 
   return (
-    <div ref={scrollRef} className="h-full overflow-y-auto overscroll-contain scroll-smooth">
-      <motion.div
+    <div ref={scrollRef} className="h-full overflow-y-auto overscroll-contain">
+      <div
         key={threadKey}
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
-        className="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-10 pt-6 md:px-6"
+        className="anim-fade-in mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 pb-10 pt-6 md:px-6"
         role="log"
         aria-live="polite"
       >
-        <AnimatePresence initial={false}>{content}</AnimatePresence>
-        <div ref={bottomRef} aria-hidden />
-      </motion.div>
+        {content}
+      </div>
     </div>
-  );
-}
-
-function UserOrAssistant({ message, streaming }: { message: ChatMessage; streaming: boolean }) {
-  return message.role === 'user' ? (
-    <UserBubble message={message} />
-  ) : (
-    <AssistantBubble message={message} streaming={streaming} />
   );
 }

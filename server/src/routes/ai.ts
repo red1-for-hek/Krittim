@@ -1,0 +1,88 @@
+import { Router, type Response } from 'express';
+import { z } from 'zod';
+import { Chat } from '../models/Chat.js';
+import { Message } from '../models/Message.js';
+import { requireAuth, type AuthRequest } from '../middleware/auth.js';
+import { streamCompletion, type ModelId, type ReasoningMode, type ChatMessage } from '../ai/proxy.js';
+
+const router = Router();
+router.use(requireAuth);
+
+const streamSchema = z.object({
+  slug: z.string().min(1),
+  modelId: z.enum(['r1_xenon', 's1_neon']).default('s1_neon'),
+  reasoningMode: z.enum(['auto', 'fast', 'thinking']).default('auto'),
+  message: z.string().min(1).max(32_000),
+});
+
+/**
+ * POST /api/ai/stream
+ * Body: { slug, modelId, reasoningMode, message }
+ *
+ * SSE events:
+ *   data: {"type":"chunk","content":"..."}
+ *   data: {"type":"done","provider":"groq","modelId":"llama-3.3-70b"}
+ *   data: [DONE]
+ *   data: {"type":"error","message":"..."}
+ */
+router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> => {
+  const parsed = streamSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
+  const { slug, modelId, reasoningMode, message } = parsed.data;
+
+  const chat = await Chat.findOne({ slug, userId: req.userId });
+  if (!chat) { res.status(404).json({ error: 'Chat not found' }); return; }
+
+  await Message.create({ chatId: chat._id, role: 'user', content: message });
+
+  // Auto-title on first real message
+  if (chat.title === 'New Chat') {
+    const title = message.length > 50 ? `${message.slice(0, 50).trimEnd()}…` : message;
+    await Chat.findByIdAndUpdate(chat._id, { title, modelId, reasoningMode });
+  } else {
+    await Chat.findByIdAndUpdate(chat._id, { modelId, reasoningMode, updatedAt: new Date() });
+  }
+
+  // Last 20 messages for context
+  const history = await Message.find({ chatId: chat._id })
+    .sort({ createdAt: -1 })
+    .limit(20)
+    .lean();
+  const contextMessages: ChatMessage[] = history
+    .reverse()
+    .map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
+
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+
+  let fullContent = '';
+
+  try {
+    await streamCompletion(
+      modelId as ModelId,
+      reasoningMode as ReasoningMode,
+      contextMessages,
+      (chunk) => {
+        fullContent += chunk;
+        res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);
+      },
+      (provider, providerModel) => {
+        res.write(`data: ${JSON.stringify({ type: 'done', provider, modelId: providerModel })}\n\n`);
+        res.write('data: [DONE]\n\n');
+      },
+    );
+
+    await Message.create({ chatId: chat._id, role: 'assistant', content: fullContent, modelId, reasoningMode });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'All providers failed';
+    res.write(`data: ${JSON.stringify({ type: 'error', message: msg })}\n\n`);
+    res.write('data: [DONE]\n\n');
+  } finally {
+    res.end();
+  }
+});
+
+export default router;

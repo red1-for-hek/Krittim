@@ -35,84 +35,6 @@ const DAY = 24 * HOUR;
 
 /* ------------------------------- mock seed -------------------------------- */
 
-const SEED_PROJECTS: Project[] = [
-  { id: 'p_krittim', name: 'Krittim v2', emoji: '🚀', color: 'from-violet-500 to-fuchsia-500' },
-  { id: 'p_club', name: 'BNMPC IT Club', emoji: '🎓', color: 'from-cyan-400 to-blue-500' },
-];
-
-interface SeedChat {
-  title: string;
-  projectId?: string | null;
-  pinned?: boolean;
-  ageMs: number;
-  messages?: Array<Pick<ChatMessage, 'role' | 'content'> & Partial<ChatMessage>>;
-}
-
-const SEED_CHATS: SeedChat[] = [
-  {
-    title: 'Refactor auth middleware in Next.js',
-    projectId: 'p_krittim',
-    pinned: true,
-    ageMs: 2 * HOUR,
-    messages: [
-      { role: 'user', content: 'Our Next.js middleware re-checks the JWT on every route and it is getting slow. How do I restructure it?' },
-      {
-        role: 'assistant',
-        content: [
-          'The pattern I would reach for: **verify once at the edge, hydrate lazily downstream**.',
-          '',
-          '1. Keep middleware as a thin gatekeeper — signature check + expiry only.',
-          '2. Move role/permission lookups behind a cached `getSessionClaims()` helper (SWR or LRU).',
-          '3. Coalesce parallel checks with a request-scoped context so one page render verifies the token exactly once.',
-          '',
-          'That typically cuts per-request overhead by 60–80% because you stop round-tripping the database for claims that rarely change.',
-        ].join('\n'),
-      },
-    ],
-  },
-  { title: 'Vector DB benchmark: pgvector vs Qdrant', projectId: 'p_krittim', ageMs: 6 * HOUR },
-  {
-    title: 'Draft launch copy for Krittim v2',
-    projectId: 'p_krittim',
-    ageMs: 20 * HOUR,
-    messages: [
-      { role: 'user', content: 'Write a one-line hero statement for the Krittim v2 landing page.' },
-    ],
-  },
-  { title: 'Explain KV-cache in transformer inference', ageMs: 1.4 * DAY },
-  { title: 'SQL window functions cheat-sheet', ageMs: 2 * DAY },
-  { title: 'Festival stage plan — BNMPC IT Club', projectId: 'p_club', ageMs: 3 * DAY },
-  { title: 'Rust vs Go for edge functions', projectId: 'p_club', ageMs: 5 * DAY },
-];
-
-function buildSeed(): { chats: Chat[]; messagesByChatId: Record<string, ChatMessage[]> } {
-  const now = Date.now();
-  const chats: Chat[] = [];
-  const messagesByChatId: Record<string, ChatMessage[]> = {};
-
-  for (const seedChat of SEED_CHATS) {
-    const id = uid('chat');
-    const createdAt = now - seedChat.ageMs;
-    chats.push({
-      id,
-      title: seedChat.title,
-      projectId: seedChat.projectId ?? null,
-      pinned: seedChat.pinned,
-      createdAt,
-      updatedAt: createdAt + (seedChat.messages ? 4 * 60 * 1000 : 0),
-    });
-    messagesByChatId[id] = (seedChat.messages ?? []).map((m, j) => ({
-      id: uid('msg'),
-      role: m.role,
-      content: m.content,
-      createdAt: createdAt + j * 2 * 60 * 1000,
-      model: m.role === 'assistant' ? ('auto' as ModelId) : undefined,
-    }));
-  }
-
-  return { chats, messagesByChatId };
-}
-
 /* ------------------------------ time buckets ------------------------------ */
 
 export function bucketFor(timestamp: number, now: number): string {
@@ -220,6 +142,8 @@ export function applyThemeEffect(): () => void {
   const sync = () => {
     const resolved = resolveTheme(useChatStore.getState().theme);
     document.documentElement.classList.toggle('dark', resolved === 'dark');
+    document.documentElement.classList.toggle('light', resolved === 'light');
+    document.documentElement.style.colorScheme = resolved;
     try {
       // Read by the anti-flash script on next load (JSON: {"state":{"theme":…}}).
       const raw = localStorage.getItem('krittim-chat-store');
@@ -307,9 +231,13 @@ export interface ChatState {
   theme: ThemePreference;
   aiMemory: boolean;
   streamResponses: boolean;
+  enterToSend: boolean;
+  showTimestamps: boolean;
   setTheme: (theme: ThemePreference) => void;
   setAiMemory: (on: boolean) => void;
   setStreamResponses: (on: boolean) => void;
+  setEnterToSend: (on: boolean) => void;
+  setShowTimestamps: (on: boolean) => void;
 }
 
 /* Module-level handles so an in-flight simulated stream can be interrupted without living inside React. */
@@ -333,8 +261,6 @@ const patchMessageContent = (chatId: string, messageId: string, content: string)
       ) ?? [],
     },
   }));
-
-const initialSeed = buildSeed();
 
 export const useChatStore = create<ChatState>()(
   persist(
@@ -585,9 +511,13 @@ export const useChatStore = create<ChatState>()(
     theme: 'dark',
     aiMemory: true,
     streamResponses: true,
+    enterToSend: true,
+    showTimestamps: true,
     setTheme: (theme) => set({ theme }),
     setAiMemory: (aiMemory) => set({ aiMemory }),
     setStreamResponses: (streamResponses) => set({ streamResponses }),
+    setEnterToSend: (enterToSend) => set({ enterToSend }),
+    setShowTimestamps: (showTimestamps) => set({ showTimestamps }),
     };
   },
   {

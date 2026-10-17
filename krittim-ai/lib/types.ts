@@ -138,6 +138,8 @@ export const PERSISTED_STATE_KEYS = [
   "theme",
   "aiMemory",
   "streamResponses",
+  "enterToSend",
+  "showTimestamps",
 ] as const;
 
 /** localStorage entry holding the resolved + preferred theme (read by the inline script in layout). */

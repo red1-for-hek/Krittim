@@ -2,14 +2,19 @@
 
 import { motion } from 'framer-motion';
 import {
+  Bell,
   Brain,
   DatabaseZap,
   Eraser,
+  Keyboard,
+  LogOut,
   MonitorSmartphone,
   Moon,
   Radio,
   Sun,
   Trash2,
+  UserRound,
+  Zap,
   type LucideIcon,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -27,11 +32,10 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
 import type { ThemePreference } from '@/lib/types';
+import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
 
 const SPRING = { type: 'spring', stiffness: 400, damping: 32 } as const;
-
-/* ------------------------------- small parts ------------------------------- */
 
 function SectionCard({ children, danger = false }: { children: ReactNode; danger?: boolean }) {
   return (
@@ -92,16 +96,18 @@ function ThemeOption({
   return (
     <button
       type="button"
-      onClick={() => onChange(value)}
+      onClick={() => {
+        onChange(value);
+        toast.success(`${label} mode on`, { duration: 1400 });
+      }}
       aria-pressed={active}
       className={cn(
-        'relative flex flex-col items-center gap-2 rounded-xl border px-3 py-4 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-brand/50',
+        'relative flex flex-col items-center gap-2 rounded-xl border px-3 py-4 text-xs font-medium outline-none transition-all duration-200 focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-[0.97]',
         active
-          ? 'border-brand/50 bg-brand/10 text-foreground shadow-[0_0_24px_-8px_oklch(0.72_0.17_278/50%)]'
+          ? 'border-brand/50 bg-brand/10 text-foreground shadow-[0_0_24px_-8px_var(--brand)]'
           : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:text-foreground',
       )}
     >
-      {/* animated selection glow */}
       {active && (
         <motion.span layoutId="theme-pill" className="absolute inset-0 rounded-xl border border-brand/30" transition={SPRING} />
       )}
@@ -111,12 +117,6 @@ function ThemeOption({
   );
 }
 
-/* --------------------------------- modal ---------------------------------- */
-
-/**
- * SettingsModal — glass dialog triggered from the sidebar.
- * Tabs: Appearance · AI Features · Danger Zone. Spring scale-in entrance.
- */
 export function SettingsModal() {
   const open = useChatStore((s) => s.settingsOpen);
   const setOpen = useChatStore((s) => s.setSettingsOpen);
@@ -127,9 +127,17 @@ export function SettingsModal() {
   const setAiMemory = useChatStore((s) => s.setAiMemory);
   const streamResponses = useChatStore((s) => s.streamResponses);
   const setStreamResponses = useChatStore((s) => s.setStreamResponses);
+  const enterToSend = useChatStore((s) => s.enterToSend);
+  const setEnterToSend = useChatStore((s) => s.setEnterToSend);
+  const showTimestamps = useChatStore((s) => s.showTimestamps);
+  const setShowTimestamps = useChatStore((s) => s.setShowTimestamps);
   const clearAllChats = useChatStore((s) => s.clearAllChats);
-
   const resetAllData = useChatStore((s) => s.resetAllData);
+
+  const user = useAuthStore((s) => s.user);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const logout = useAuthStore((s) => s.logout);
+  const openAuthModal = useAuthStore((s) => s.openAuthModal);
 
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [confirmingReset, setConfirmingReset] = useState(false);
@@ -139,55 +147,42 @@ export function SettingsModal() {
     if (!next) {
       setConfirmingClear(false);
       setConfirmingReset(false);
-      toast.success('Settings saved', { description: 'Your preferences are stored locally.' });
     }
+  };
+
+  const flip = (v: boolean, fn: (on: boolean) => void, label: string) => {
+    fn(v);
+    toast.success(`${label} ${v ? 'on' : 'off'}`, { duration: 1400 });
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent
-        showCloseButton
-        className={cn(
-          'glass-panel w-full max-w-lg overflow-hidden rounded-2xl border-white/10 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)] data-open:animate-none',
-        )}
-      >
-        {/* entrance animation wrapper (Base UI owns open state; we spring-scale inner content) */}
+      <DialogContent className="glass-panel max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl border-white/10 shadow-[0_40px_120px_-30px_rgba(0,0,0,0.9)]">
         <motion.div
-          initial={{ opacity: 0, scale: 0.94, y: 12 }}
+          initial={{ opacity: 0, scale: 0.96, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           transition={SPRING}
           className="flex flex-col gap-5"
         >
           <DialogHeader className="space-y-1 text-left">
-            <DialogTitle className="font-serif-display text-2xl italic tracking-tight text-aurora">
+            <DialogTitle className="font-sans text-xl font-semibold tracking-tight text-foreground">
               Settings
             </DialogTitle>
             <DialogDescription className="text-xs text-muted-foreground">
-              Tune Krittim to your workflow, reasoning parameters, and workspace preferences.
+              Appearance, chat behaviour, account and local data.
             </DialogDescription>
           </DialogHeader>
 
           <Tabs defaultValue="appearance" className="gap-4">
             <TabsList className="w-full rounded-xl border border-hairline bg-surface-soft p-1">
-              <TabsTrigger value="appearance" className="rounded-lg text-xs">
-                Appearance
-              </TabsTrigger>
-              <TabsTrigger value="ai" className="rounded-lg text-xs">
-                AI Features
-              </TabsTrigger>
-              <TabsTrigger value="danger" className="rounded-lg text-xs text-red-400/80 data-active:text-red-400">
-                Danger Zone
-              </TabsTrigger>
+              <TabsTrigger value="appearance" className="rounded-lg text-xs">Appearance</TabsTrigger>
+              <TabsTrigger value="chat" className="rounded-lg text-xs">Chat</TabsTrigger>
+              <TabsTrigger value="account" className="rounded-lg text-xs">Account</TabsTrigger>
+              <TabsTrigger value="danger" className="rounded-lg text-xs text-red-400/80">Data</TabsTrigger>
             </TabsList>
 
-            {/* ------------------------- Appearance ------------------------- */}
             <TabsContent value="appearance">
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col gap-4"
-              >
+              <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-3 gap-2">
                   <ThemeOption value="dark" current={theme} onChange={setTheme} label="Dark" icon={Moon} />
                   <ThemeOption value="light" current={theme} onChange={setTheme} label="Light" icon={Sun} />
@@ -195,125 +190,109 @@ export function SettingsModal() {
                 </div>
                 <SectionCard>
                   <SettingRow
-                    icon={Radio}
-                    title="Interface density"
-                    description="Comfortable spacing is tuned for long-form reasoning threads."
+                    icon={Zap}
+                    title="Accent preview"
+                    description="Deep green glow used across buttons, glows and active states."
                   >
-                    <span className="rounded-full border border-white/[0.08] bg-surface-soft px-2.5 py-1 text-[11px] text-muted-foreground">
-                      Comfortable
+                    <span className="grid size-8 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-soft text-sm font-bold text-white">
+                      K
                     </span>
                   </SettingRow>
                 </SectionCard>
-              </motion.div>
-            </TabsContent>
-
-            {/* ------------------------- AI Features ------------------------ */}
-            <TabsContent value="ai">
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-                className="flex flex-col gap-3"
-              >
                 <SectionCard>
                   <SettingRow
-                    icon={Brain}
-                    title="Enable AI Memory"
-                    description="Krittim recalls preferences and context across conversations — like a colleague who remembers last week's decisions."
+                    icon={Bell}
+                    title="Timestamps"
+                    description="Show message time under each bubble."
                   >
-                    <Switch
-                      checked={aiMemory}
-                      onCheckedChange={(checked) => setAiMemory(checked === true)}
-                      aria-label="Enable AI memory"
-                    />
+                    <Switch checked={showTimestamps} onCheckedChange={(v) => flip(v === true, setShowTimestamps, 'Timestamps')} aria-label="Show timestamps" />
                   </SettingRow>
                 </SectionCard>
-
-                <SectionCard>
-                  <SettingRow
-                    icon={Radio}
-                    title="Stream Responses"
-                    description="Render tokens as they arrive instead of waiting for the full answer. Feels instant at the cost of slightly higher bandwidth."
-                  >
-                    <Switch
-                      checked={streamResponses}
-                      onCheckedChange={(checked) => setStreamResponses(checked === true)}
-                      aria-label="Stream responses"
-                    />
-                  </SettingRow>
-                </SectionCard>
-              </motion.div>
+              </div>
             </TabsContent>
 
-            {/* -------------------------- Danger Zone ----------------------- */}
+            <TabsContent value="chat">
+              <div className="flex flex-col gap-3">
+                <SectionCard>
+                  <SettingRow icon={Brain} title="AI Memory" description="Remember preferences and context across conversations.">
+                    <Switch checked={aiMemory} onCheckedChange={(v) => flip(v === true, setAiMemory, 'AI memory')} aria-label="Enable AI memory" />
+                  </SettingRow>
+                </SectionCard>
+                <SectionCard>
+                  <SettingRow icon={Radio} title="Stream responses" description="Render tokens as they arrive. Turn off for full answers at once.">
+                    <Switch checked={streamResponses} onCheckedChange={(v) => flip(v === true, setStreamResponses, 'Streaming')} aria-label="Stream responses" />
+                  </SettingRow>
+                </SectionCard>
+                <SectionCard>
+                  <SettingRow icon={Keyboard} title="Enter to send" description="Enter sends, Shift+Enter adds a new line. Turn off to always need the send button.">
+                    <Switch checked={enterToSend} onCheckedChange={(v) => flip(v === true, setEnterToSend, 'Enter to send')} aria-label="Enter to send" />
+                  </SettingRow>
+                </SectionCard>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="account">
+              <div className="flex flex-col gap-3">
+                {isAuthenticated ? (
+                  <SectionCard>
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-sm font-semibold text-white">
+                        {user?.initials}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-foreground">{user?.name}</p>
+                        <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
+                      </div>
+                      <Button variant="ghost" size="sm" onClick={() => { logout(); toast.success('Logged out'); }}>
+                        <LogOut className="size-3.5" /> Log out
+                      </Button>
+                    </div>
+                  </SectionCard>
+                ) : (
+                  <SectionCard>
+                    <SettingRow icon={UserRound} title="Not signed in" description="Log in to sync chats across devices.">
+                      <Button size="sm" onClick={() => { setOpen(false); openAuthModal('login'); }}>
+                        Log in
+                      </Button>
+                    </SettingRow>
+                  </SectionCard>
+                )}
+              </div>
+            </TabsContent>
+
             <TabsContent value="danger">
-              <motion.div
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
-              >
+              <div className="flex flex-col gap-3">
                 <SectionCard danger>
-                  <SettingRow
-                    icon={Trash2}
-                    title="Clear All Chats"
-                    description="Permanently removes every message in this session from local state. This cannot be undone."
-                  >
+                  <SettingRow icon={Trash2} title="Clear all chats" description="Removes every message in this session. Cannot be undone.">
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label="Clear all chats"
+                      variant="ghost" size="sm" aria-label="Clear all chats"
                       onClick={() => {
-                        if (confirmingClear) {
-                          clearAllChats();
-                          setConfirmingClear(false);
-                          handleOpenChange(false);
-                        } else {
-                          setConfirmingClear(true);
-                          window.setTimeout(() => setConfirmingClear(false), 3000);
-                        }
+                        if (confirmingClear) { clearAllChats(); setConfirmingClear(false); handleOpenChange(false); }
+                        else { setConfirmingClear(true); window.setTimeout(() => setConfirmingClear(false), 3000); }
                       }}
-                      className={cn(
-                        'h-8 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 shadow-none transition-all duration-200 hover:bg-red-500/25 hover:text-red-300',
-                        confirmingClear && 'bg-red-500 text-white hover:bg-red-500 hover:text-white',
-                      )}
+                      className={cn('h-8 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300', confirmingClear && 'bg-red-500 text-white hover:bg-red-500 hover:text-white')}
                     >
                       <Trash2 className="size-3.5" strokeWidth={2.2} />
-                      {confirmingClear ? 'Tap again to confirm' : 'Clear All Chats'}
+                      {confirmingClear ? 'Tap again to confirm' : 'Clear chats'}
                     </Button>
                   </SettingRow>
                 </SectionCard>
-
                 <SectionCard danger>
-                  <SettingRow
-                    icon={DatabaseZap}
-                    title="Clear Local Storage"
-                    description="Wipes every chat, message and preference from this browser — Krittm reboots to a factory-fresh state on next load."
-                  >
+                  <SettingRow icon={DatabaseZap} title="Clear local storage" description="Wipes chats, messages and preferences from this browser.">
                     <Button
-                      variant="ghost"
-                      size="sm"
-                      aria-label="Clear local storage"
+                      variant="ghost" size="sm" aria-label="Clear local storage"
                       onClick={() => {
-                        if (confirmingReset) {
-                          resetAllData();
-                          setConfirmingReset(false);
-                          handleOpenChange(false);
-                        } else {
-                          setConfirmingReset(true);
-                          window.setTimeout(() => setConfirmingReset(false), 3000);
-                        }
+                        if (confirmingReset) { resetAllData(); setConfirmingReset(false); handleOpenChange(false); }
+                        else { setConfirmingReset(true); window.setTimeout(() => setConfirmingReset(false), 3000); }
                       }}
-                      className={cn(
-                        'h-8 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 shadow-none transition-all duration-200 hover:bg-red-500/25 hover:text-red-300',
-                        confirmingReset && 'bg-red-500 text-white hover:bg-red-500 hover:text-white',
-                      )}
+                      className={cn('h-8 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300', confirmingReset && 'bg-red-500 text-white hover:bg-red-500 hover:text-white')}
                     >
                       <Eraser className="size-3.5" strokeWidth={2.2} />
-                      {confirmingReset ? 'Tap again to confirm' : 'Clear Storage'}
+                      {confirmingReset ? 'Tap again to confirm' : 'Clear storage'}
                     </Button>
                   </SettingRow>
                 </SectionCard>
-              </motion.div>
+              </div>
             </TabsContent>
           </Tabs>
 

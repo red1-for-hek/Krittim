@@ -44,7 +44,7 @@ export const viewport: Viewport = {
  * Reads the resolved value we mirror into `krittim-theme` whenever the store
  * syncs; falls back to the persisted preference, then OS setting, then dark.
  */
-const THEME_BOOTSTRAP = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('krittim-theme');var r=t?JSON.parse(t).resolved:null;if(!r){var s=localStorage.getItem('krittim-chat-store');var p=s?JSON.parse(s).state.theme:null;r=p==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):(p||'dark')}d.classList.toggle('dark',r!=='light');d.style.colorScheme=r}catch(e){document.documentElement.classList.add('dark')}})();`;
+const THEME_BOOTSTRAP = `(function(){try{var d=document.documentElement;var t=localStorage.getItem('krittim-theme');var r=t?JSON.parse(t).resolved:null;if(!r){var s=localStorage.getItem('krittim-chat-store');var p=s?JSON.parse(s).state.theme:null;r=p==='system'?(matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):(p||'dark')}d.classList.toggle('dark',r!=='light');d.classList.toggle('light',r==='light');d.style.colorScheme=r}catch(e){document.documentElement.classList.add('dark')}})();`;
 
 /**
  * RootLayout — Server Component
