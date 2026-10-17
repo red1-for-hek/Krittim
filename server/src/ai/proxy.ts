@@ -2,13 +2,14 @@
  * AI Proxy — model routing + provider fallback + SSE streaming.
  *
  * R1 Xenon:  xKiro key-1 → xKiro key-2 → apinex.bond → fallback to S1 Neon chain
- * S1 Neon:   Groq → Together AI → OpenRouter (free models)
+ * S1 Neon:   Groq (5 keys round-robin) → Together AI → OpenRouter (free models)
+ * Image Gen: xKiro key-1 → xKiro key-2 (sensenova-u1.5-lite)
  *
- * All providers speak OpenAI-compatible /chat/completions with stream=true.
+ * All providers speak OpenAI-compatible /chat/completions.
  * On 429 / 5xx / network error → immediately try next provider.
  */
 
-export type ModelId = 'r1_xenon' | 's1_neon';
+export type ModelId = 'r1_xenon' | 's1_neon' | 'image_gen';
 export type ReasoningMode = 'auto' | 'fast' | 'thinking';
 
 export interface ChatMessage {
@@ -23,20 +24,49 @@ interface Provider {
   model: string;
 }
 
+// Round-robin index for Groq keys
+let groqKeyIndex = 0;
+
+function getGroqProviders(): Provider[] {
+  const keys = [
+    process.env.GROQ_API_KEY_1,
+    process.env.GROQ_API_KEY_2,
+    process.env.GROQ_API_KEY_3,
+    process.env.GROQ_API_KEY_4,
+    process.env.GROQ_API_KEY_5,
+  ].filter(Boolean) as string[];
+
+  if (!keys.length) return [];
+
+  // Start from current round-robin index, wrap around
+  const model = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
+  const ordered = [...keys.slice(groqKeyIndex), ...keys.slice(0, groqKeyIndex)];
+  groqKeyIndex = (groqKeyIndex + 1) % keys.length;
+
+  return ordered.map((apiKey, i) => ({
+    name: `groq-${i + 1}`,
+    baseUrl: 'https://api.groq.com/openai/v1',
+    apiKey,
+    model,
+  }));
+}
+
 function getProviders(modelId: ModelId): Provider[] {
-  // R1 Xenon providers — xKiro with 2 keys for rotation, then apinex fallback
+  const xkiroBase = process.env.XKIRO_BASE_URL ?? 'https://api.xkiro.com/v1';
+
+  // R1 Xenon providers — qwen3.8-max via xKiro, then apinex fallback
   const xenon: Provider[] = [
     {
       name: 'xKiro-1',
-      baseUrl: process.env.XKIRO_BASE_URL ?? 'https://api.xkiro.com/v1',
+      baseUrl: xkiroBase,
       apiKey: process.env.XKIRO_API_KEY_1 ?? '',
-      model: process.env.XKIRO_MODEL ?? 'muse-spark-1.3',
+      model: 'qwen/qwen3.8-max:free',
     },
     {
       name: 'xKiro-2',
-      baseUrl: process.env.XKIRO_BASE_URL ?? 'https://api.xkiro.com/v1',
+      baseUrl: xkiroBase,
       apiKey: process.env.XKIRO_API_KEY_2 ?? '',
-      model: process.env.XKIRO_MODEL ?? 'muse-spark-1.3',
+      model: 'qwen/qwen3.8-max:free',
     },
     {
       name: 'apinex',
@@ -46,24 +76,16 @@ function getProviders(modelId: ModelId): Provider[] {
     },
   ];
 
-  // S1 Neon providers — all free tier, no credit card needed
+  // S1 Neon providers — Groq (5 keys) → Together AI → OpenRouter
   const neon: Provider[] = [
+    ...getGroqProviders(),
     {
-      // Groq: completely free, very high limits, ultra fast
-      name: 'groq',
-      baseUrl: 'https://api.groq.com/openai/v1',
-      apiKey: process.env.GROQ_API_KEY ?? '',
-      model: process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile',
-    },
-    {
-      // Together AI: $1 free credit, no card, fast
       name: 'together',
       baseUrl: 'https://api.together.xyz/v1',
       apiKey: process.env.TOGETHER_API_KEY ?? '',
       model: process.env.TOGETHER_MODEL ?? 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free',
     },
     {
-      // OpenRouter: free models available, no card for free tier
       name: 'openrouter',
       baseUrl: 'https://openrouter.ai/api/v1',
       apiKey: process.env.OPENROUTER_API_KEY ?? '',
@@ -71,9 +93,60 @@ function getProviders(modelId: ModelId): Provider[] {
     },
   ];
 
-  // R1 Xenon: try xenon providers first, then fall through to neon as last resort
   if (modelId === 'r1_xenon') return [...xenon, ...neon];
   return neon;
+}
+
+/**
+ * Generate an image via xKiro (sensenova-u1.5-lite).
+ * Returns the image URL or base64 data from the response.
+ */
+export async function generateImage(prompt: string): Promise<string> {
+  const xkiroBase = process.env.XKIRO_BASE_URL ?? 'https://api.xkiro.com/v1';
+  const keys = [
+    process.env.XKIRO_API_KEY_1,
+    process.env.XKIRO_API_KEY_2,
+  ].filter(Boolean) as string[];
+
+  let lastError: Error | null = null;
+
+  for (const apiKey of keys) {
+    try {
+      const res = await fetch(`${xkiroBase}/chat/completions`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'sensenova/sensenova-u1.5-lite',
+          messages: [{ role: 'user', content: prompt }],
+          stream: false,
+        }),
+      });
+
+      if (res.status === 429 || res.status >= 500) {
+        lastError = new Error(`xKiro image → HTTP ${res.status}`);
+        continue;
+      }
+
+      if (!res.ok) {
+        const body = await res.text().catch(() => '');
+        lastError = new Error(`xKiro image → HTTP ${res.status}: ${body.slice(0, 120)}`);
+        continue;
+      }
+
+      const json = await res.json();
+      // Response may be image URL or base64 in content
+      const content: string = json.choices?.[0]?.message?.content ?? '';
+      if (!content) throw new Error('Empty image response');
+      return content;
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error(String(err));
+    }
+  }
+
+  throw lastError ?? new Error('Image generation failed');
 }
 
 function buildSystemPrompt(mode: ReasoningMode): string {

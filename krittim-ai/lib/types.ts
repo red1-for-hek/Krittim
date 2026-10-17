@@ -21,6 +21,8 @@ export interface ChatMessage {
   /** Which reasoning mode produced this answer (assistant only). */
   mode?: ReasoningMode;
   pending?: boolean;
+  /** For image_gen responses — the returned image content/URL. */
+  imageContent?: string;
   /** Files attached to this turn. */
   attachments?: AttachmentMeta[];
 }
@@ -45,7 +47,7 @@ export interface Project {
 
 /* --------------------------------- Models --------------------------------- */
 
-export type ModelId = "r1_xenon" | "s1_neon";
+export type ModelId = "r1_xenon" | "s1_neon" | "image_gen";
 export type ReasoningMode = "auto" | "fast" | "thinking";
 
 export interface ModelOption {
@@ -56,6 +58,12 @@ export interface ModelOption {
 }
 
 export const MODEL_OPTIONS: readonly ModelOption[] = [
+  {
+    id: "image_gen",
+    name: "Krittim Image",
+    tagline: "Image Gen",
+    description: "Generate images from text prompts",
+  },
   {
     id: "r1_xenon",
     name: "Krittim R1 Xenon",

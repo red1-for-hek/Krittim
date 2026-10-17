@@ -10,6 +10,7 @@ import {
   Settings2,
   SquarePen,
   SunMoon,
+  Wand2,
   Zap,
   type LucideIcon,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ const SPRING = { type: 'spring', stiffness: 420, damping: 34, mass: 0.9 } as con
 const MODEL_ICONS: Record<ModelId, LucideIcon> = {
   r1_xenon: BrainCircuit,
   s1_neon: Zap,
+  image_gen: Wand2,
 };
 
 interface PaletteAction {

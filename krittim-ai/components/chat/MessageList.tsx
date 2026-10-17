@@ -1,6 +1,6 @@
 'use client';
 
-import { BrainCircuit, Check, Copy, Sparkles, Zap } from 'lucide-react';
+import { BrainCircuit, Check, Copy, Sparkles, Wand2, Zap } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -15,6 +15,7 @@ import { selectActiveMessages, useChatStore } from '@/store/chatStore';
 const MODEL_ICONS: Record<ModelId, typeof Sparkles> = {
   r1_xenon: BrainCircuit,
   s1_neon: Zap,
+  image_gen: Wand2,
 };
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });

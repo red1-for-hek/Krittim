@@ -13,6 +13,7 @@ import {
   Paperclip,
   Sparkles,
   Square,
+  Wand2,
   X,
   Zap,
   type LucideIcon,
@@ -27,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useSpeechToText } from '@/hooks/useSpeechToText';
-import { MODE_OPTIONS, type AttachmentMeta, type ReasoningMode } from '@/lib/types';
+import { MODE_OPTIONS, type AttachmentMeta, type ModelId, type ReasoningMode } from '@/lib/types';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/store/chatStore';
 
@@ -71,10 +72,13 @@ export function ChatInput({ centered = false }: ChatInputProps) {
   const isStreaming = useChatStore((s) => s.isStreaming);
   const reasoningMode = useChatStore((s) => s.reasoningMode);
   const setReasoningMode = useChatStore((s) => s.setReasoningMode);
+  const model = useChatStore((s) => s.model);
+  const setModel = useChatStore((s) => s.setModel);
 
   const [value, setValue] = useState('');
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const isImageMode = model === 'image_gen';
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -277,7 +281,7 @@ export function ChatInput({ centered = false }: ChatInputProps) {
               onKeyDown={onKeyDown}
               rows={1}
               placeholder={
-                speech.listening ? 'Dictating… say your thought' : 'Ask Krittim anything, brainstorm, or paste context…'
+                speech.listening ? 'Dictating… say your thought' : isImageMode ? 'Describe the image you want to generate…' : 'Ask Krittim anything, brainstorm, or paste context…'
               }
               aria-label="Message Krittim AI"
               className={cn(
@@ -314,10 +318,21 @@ export function ChatInput({ centered = false }: ChatInputProps) {
 
               <button
                 type="button"
-                onClick={() => {
-                  if (!speech.supported) return;
-                  speech.toggle();
-                }}
+                onClick={() => setModel(isImageMode ? 's1_neon' : 'image_gen' as ModelId)}
+                aria-label={isImageMode ? 'Switch to chat mode' : 'Switch to image generation mode'}
+                title={isImageMode ? 'Image mode active — click to switch back to chat' : 'Generate images with AI'}
+                className={cn(
+                  'group flex items-center gap-1.5 rounded-xl border border-hairline px-2.5 py-1.5 text-xs font-medium outline-none transition-all duration-200 active:scale-95',
+                  isImageMode
+                    ? 'border-brand/50 bg-brand/15 text-brand shadow-[0_0_14px_-2px_oklch(0.72_0.17_278/50%)]'
+                    : 'bg-surface text-muted-foreground hover:border-brand/30 hover:bg-surface-hover hover:text-foreground',
+                )}
+              >
+                <Wand2 className={cn('size-3.5 transition-colors', isImageMode ? 'text-brand' : 'text-muted-foreground group-hover:text-brand')} strokeWidth={2} />
+                <span className="hidden sm:inline">{isImageMode ? 'Image' : 'Image'}</span>
+              </button>
+
+              <button
                 disabled={!speech.supported}
                 aria-label={speech.listening ? 'Stop recording' : 'Dictate with voice'}
                 title={speech.supported ? 'Dictate prompt' : 'Speech recognition not supported in this browser'}

@@ -1,6 +1,6 @@
 'use client';
 
-import { BrainCircuit, Check, ChevronDown, Zap, type LucideIcon } from 'lucide-react';
+import { BrainCircuit, Check, ChevronDown, Wand2, Zap, type LucideIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import {
@@ -16,6 +16,7 @@ import { useChatStore } from '@/store/chatStore';
 const MODEL_ICONS: Record<ModelId, LucideIcon> = {
   r1_xenon: BrainCircuit,
   s1_neon: Zap,
+  image_gen: Wand2,
 };
 
 /**

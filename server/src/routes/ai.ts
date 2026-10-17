@@ -3,14 +3,14 @@ import { z } from 'zod';
 import { Chat } from '../models/Chat.js';
 import { Message } from '../models/Message.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
-import { streamCompletion, type ModelId, type ReasoningMode, type ChatMessage } from '../ai/proxy.js';
+import { streamCompletion, generateImage, type ModelId, type ReasoningMode, type ChatMessage } from '../ai/proxy.js';
 
 const router = Router();
 router.use(requireAuth);
 
 const streamSchema = z.object({
   slug: z.string().min(1),
-  modelId: z.enum(['r1_xenon', 's1_neon']).default('s1_neon'),
+  modelId: z.enum(['r1_xenon', 's1_neon', 'image_gen']).default('s1_neon'),
   reasoningMode: z.enum(['auto', 'fast', 'thinking']).default('auto'),
   message: z.string().min(1).max(32_000),
 });
@@ -82,6 +82,34 @@ router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> =>
     res.write('data: [DONE]\n\n');
   } finally {
     res.end();
+  }
+});
+
+/**
+ * POST /api/ai/image
+ * Body: { slug, prompt }
+ * Returns: { imageContent: string }
+ */
+router.post('/image', async (req: AuthRequest, res: Response): Promise<void> => {
+  const parsed = z.object({
+    slug: z.string().min(1),
+    prompt: z.string().min(1).max(2000),
+  }).safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
+  const { slug, prompt } = parsed.data;
+
+  const chat = await Chat.findOne({ slug, userId: req.userId });
+  if (!chat) { res.status(404).json({ error: 'Chat not found' }); return; }
+
+  await Message.create({ chatId: chat._id, role: 'user', content: prompt });
+
+  try {
+    const imageContent = await generateImage(prompt);
+    await Message.create({ chatId: chat._id, role: 'assistant', content: imageContent, modelId: 'image_gen' });
+    res.json({ imageContent });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Image generation failed';
+    res.status(502).json({ error: msg });
   }
 });
 
