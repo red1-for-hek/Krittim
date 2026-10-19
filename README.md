@@ -119,6 +119,24 @@ NEXT_PUBLIC_API_URL=https://<your-server-project>.vercel.app
 
 Deploy the server first, copy its Vercel URL into `CLIENT_ORIGIN` and the client variable above, then redeploy both projects.
 
+### Codespaces local URLs
+
+When running both apps inside Codespaces, use:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:4000
+```
+
+The frontend runs at `http://localhost:3000` and the backend at
+`http://localhost:4000`. Forward both ports in the Codespaces **Ports** panel
+if the browser cannot reach them directly.
+
+If Next.js reports hydration differences containing attributes such as
+`bis_skin_checked`, `bis_register`, or `__processed_*`, those attributes were
+added by a browser extension after server rendering. Disable that extension
+for the Codespaces/localhost page or test in a private window with extensions
+disabled; they are not application-rendered attributes.
+
 ---
 
 ## API Keys — Where to Get Them (All Free)

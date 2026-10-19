@@ -63,6 +63,7 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body
+        suppressHydrationWarning
         className={`${dmSans.variable} ${playfair.variable} ${geistMono.variable} min-h-dvh bg-background font-sans text-foreground antialiased`}
       >
         {children}
