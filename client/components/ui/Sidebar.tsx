@@ -78,17 +78,13 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
   const sidebarOpen = useChatStore((s) => s.sidebarOpen);
   const collapsed = variant === 'mobile' ? false : !sidebarOpen;
   const setSidebarOpen = useChatStore((s) => s.setSidebarOpen);
-  const createChat = useChatStore((s) => s.createChat);
+  const startNewChat = useChatStore((s) => s.startNewChat);
   const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
 
   const [activeNav, setActiveNav] = useState('new');
 
   const openNewChat = () => {
-    const id = createChat(null);
-    const newChat = useChatStore.getState().chats.find((c) => c.id === id);
-    if (newChat && typeof window !== 'undefined') {
-      window.history.pushState(null, '', `/chat/${newChat.slug}`);
-    }
+    startNewChat();
     setActiveNav('new');
     onNavigate?.('new');
     if (variant === 'desktop') setSidebarOpen(true);

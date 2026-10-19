@@ -221,6 +221,7 @@ export interface ChatState {
 
   selectChat: (id: string) => void;
   createChat: (projectId?: string | null) => string;
+  startNewChat: () => void;
   renameChat: (id: string, title: string) => void;
   deleteChat: (id: string) => void;
   clearAllChats: () => void;
@@ -232,7 +233,7 @@ export interface ChatState {
   ) => string;
 
   /* streaming simulation */
-  sendMessage: (content: string, attachments?: AttachmentMeta[]) => void;
+  sendMessage: (content: string, attachments?: AttachmentMeta[], options?: { webSearch?: boolean }) => void;
   stopStreaming: () => void;
 
   /* settings (persisted) */
@@ -251,6 +252,8 @@ export interface ChatState {
 /* Module-level handles so an in-flight simulated stream can be interrupted without living inside React. */
 let roundTripTimer: ReturnType<typeof setTimeout> | null = null;
 let streamInterval: ReturnType<typeof setInterval> | null = null;
+let aiController: AbortController | null = null;
+const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '');
 
 const cancelInflight = () => {
   if (roundTripTimer) clearTimeout(roundTripTimer);
@@ -342,18 +345,43 @@ export const useChatStore = create<ChatState>()(
 
     createChat: (projectId = null) => {
       cancelInflight();
+      const current = get();
+      const activeMessages = current.activeChatId ? current.messagesByChatId[current.activeChatId] ?? [] : [];
+      if (current.activeChatId && activeMessages.length === 0) {
+        return current.activeChatId;
+      }
       const id = uid('chat');
       const now = Date.now();
       const chat: Chat = { id, slug: generateSlug(), title: 'New Chat', projectId, createdAt: now, updatedAt: now };
       set((s) => ({
-        chats: [chat, ...s.chats],
-        messagesByChatId: { ...s.messagesByChatId, [id]: [] },
+        chats: [chat, ...s.chats.filter((item) => (s.messagesByChatId[item.id] ?? []).length > 0)],
+        messagesByChatId: { ...Object.fromEntries(Object.entries(s.messagesByChatId).filter(([chatKey]) => (s.messagesByChatId[chatKey] ?? []).length > 0)), [id]: [] },
         activeChatId: id,
         isStreaming: false,
         stopRequested: false,
         threadKey: s.threadKey + 1,
       }));
       return id;
+    },
+
+    startNewChat: () => {
+      cancelInflight();
+      set((s) => {
+        const emptyIds = new Set(
+          s.chats.filter((chat) => (s.messagesByChatId[chat.id] ?? []).length === 0).map((chat) => chat.id),
+        );
+        return {
+          chats: s.chats.filter((chat) => !emptyIds.has(chat.id)),
+          messagesByChatId: Object.fromEntries(
+            Object.entries(s.messagesByChatId).filter(([id]) => !emptyIds.has(id)),
+          ),
+          activeChatId: null,
+          isStreaming: false,
+          stopRequested: false,
+          threadKey: s.threadKey + 1,
+        };
+      });
+      if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
     },
 
     renameChat: (id, title) => {
@@ -427,6 +455,8 @@ export const useChatStore = create<ChatState>()(
         model: message.model,
         pending: message.pending,
         attachments: message.attachments,
+        sources: message.sources,
+        status: message.status,
       };
       set((s) => ({
         messagesByChatId: {
@@ -446,7 +476,7 @@ export const useChatStore = create<ChatState>()(
      * character-by-character streamed assistant reply — exactly the shape a
      * real SSE feed will have, so consumers need no changes when the backend lands.
      */
-    sendMessage: (content, attachments) => {
+    sendMessage: (content, attachments, options) => {
       const { isStreaming, model, reasoningMode } = get();
       const trimmed = content.trim();
       if (!trimmed || isStreaming) return;
@@ -455,13 +485,14 @@ export const useChatStore = create<ChatState>()(
       let chatId = get().activeChatId;
       if (!chatId) {
         chatId = get().createChat(null);
-        const newChat = useChatStore.getState().chats.find((c) => c.id === chatId);
-        if (newChat && typeof window !== 'undefined') {
-          window.history.pushState(null, '', `/chat/${newChat.slug}`);
-        }
       }
 
       cancelInflight();
+      const chat = get().chats.find((item) => item.id === chatId);
+      if (!chat) {
+        toast.error('Unable to start chat');
+        return;
+      }
 
       const userMessage: ChatMessage = {
         id: uid('msg'),
@@ -489,19 +520,73 @@ export const useChatStore = create<ChatState>()(
       });
 
       const assistantId = uid('msg');
-      const fullReply = mockReply(trimmed);
-
-      // Round-trip latency → then reveal the (empty) streaming bubble.
-      roundTripTimer = setTimeout(() => {
-        const state = useChatStore.getState();
-        if (state.activeChatId !== chatId || state.stopRequested) {
+      get().addMessage(chatId, { id: assistantId, role: 'assistant', content: '', model, mode: reasoningMode });
+      const controller = new AbortController();
+      roundTripTimer = setTimeout(() => undefined, 0);
+      void (async () => {
+        try {
+          const response = await fetch(`${apiBaseUrl}/api/ai/stream`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(typeof window !== 'undefined' && localStorage.getItem('krittim-access-token')
+                ? { Authorization: `Bearer ${localStorage.getItem('krittim-access-token')}` }
+                : {}),
+            },
+            body: JSON.stringify({ slug: chat.slug, modelId: model, reasoningMode, message: trimmed, hasImage: attachments?.some((file) => file.type.startsWith('image/')) ?? false, webSearch: options?.webSearch ?? false }),
+            signal: controller.signal,
+          });
+          if (!response.ok || !response.body) {
+            const body = await response.text().catch(() => '');
+            throw new Error(`AI request failed (${response.status}): ${body || 'empty response'}`);
+          }
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            const lines = buffer.split('\n');
+            buffer = lines.pop() ?? '';
+            for (const line of lines) {
+              if (!line.startsWith('data: ')) continue;
+              const data = line.slice(6);
+              if (data === '[DONE]') continue;
+              const event = JSON.parse(data) as { type: string; content?: string; sources?: { title: string; url: string }[]; message?: string };
+              if (event.type === 'chunk' && event.content) {
+                if (typeof window !== 'undefined' && window.location.pathname === '/') {
+                  window.history.pushState({}, '', `/chat/${chat.slug}`);
+                }
+                const current = useChatStore.getState().messagesByChatId[chatId]?.find((item) => item.id === assistantId)?.content ?? '';
+                patchMessageContent(chatId, assistantId, current + event.content);
+              } else if (event.type === 'sources') {
+                useChatStore.setState((state) => ({ messagesByChatId: { ...state.messagesByChatId, [chatId]: state.messagesByChatId[chatId].map((item) => item.id === assistantId ? { ...item, sources: event.sources } : item) } }));
+              } else if (event.type === 'status') {
+                useChatStore.setState((state) => ({ messagesByChatId: { ...state.messagesByChatId, [chatId]: state.messagesByChatId[chatId].map((item) => item.id === assistantId ? { ...item, status: event.content as 'searching' | 'thinking' } : item) } }));
+              } else if (event.type === 'error') throw new Error(event.message ?? 'AI provider failed');
+            }
+          }
           useChatStore.setState({ isStreaming: false, stopRequested: false });
-          return;
+        } catch (error) {
+          if ((error as Error).name !== 'AbortError') {
+            useChatStore.setState((state) => {
+              const messages = { ...state.messagesByChatId };
+              delete messages[chatId];
+              return {
+                chats: state.chats.filter((item) => item.id !== chatId),
+                messagesByChatId: messages,
+                activeChatId: null,
+              };
+            });
+            if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+            const message = error instanceof Error ? error.message : 'AI request failed';
+            toast.error(message.includes('Failed to fetch') ? `Cannot reach AI server at ${apiBaseUrl}` : message);
+          }
+          useChatStore.setState({ isStreaming: false, stopRequested: false });
         }
-
-        state.addMessage(chatId, { id: assistantId, role: 'assistant', content: '', model, mode: reasoningMode });
-        startCharStream(chatId, assistantId, fullReply);
-      }, 620);
+      })();
+      aiController = controller;
     },
 
     stopStreaming: () => {
@@ -509,6 +594,8 @@ export const useChatStore = create<ChatState>()(
       // Flag + hard-cancel: whichever timer is mid-flight stops appending.
       set({ stopRequested: true });
       cancelInflight();
+      aiController?.abort();
+      aiController = null;
       set((s) => ({
         isStreaming: false,
         stopRequested: false,

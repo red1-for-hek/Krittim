@@ -1,6 +1,6 @@
 'use client';
 
-import { Check, Copy, FlaskConical, Gauge, Cpu } from 'lucide-react';
+import { Check, Copy, FlaskConical, Gauge, Cpu, Globe2, BrainCircuit, ExternalLink } from 'lucide-react';
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -229,12 +229,24 @@ const AssistantBubble = memo(function AssistantBubble({
         </div>
 
         <div className="prose-krittim max-w-none text-[15px] leading-relaxed text-foreground/90 sm:text-base">
+          {message.status === 'searching' && streaming && <StatusPill icon={<Globe2 className="size-3.5" />} label="Searching the web" />}
+          {message.status === 'thinking' && streaming && <StatusPill icon={<BrainCircuit className="size-3.5" />} label="Thinking" />}
           {message.content === '' && streaming ? (
             <ThinkingDots />
           ) : (
             <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
               {message.content}
             </ReactMarkdown>
+          )}
+          {message.sources && message.sources.length > 0 && (
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {message.sources.map((source) => (
+                <a key={source.url} href={source.url} target="_blank" rel="noreferrer noopener" className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-hairline bg-surface-soft px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:border-brand/40 hover:text-foreground">
+                  <ExternalLink className="size-3 shrink-0 text-brand" />
+                  <span className="truncate">{source.title}</span>
+                </a>
+              ))}
+            </div>
           )}
           {streaming && message.content !== '' && (
             <span className="stream-caret ml-0.5 inline-block h-[1.1em] w-[3px] translate-y-[2px] rounded-full bg-brand" />
@@ -277,6 +289,16 @@ function ThinkingDots() {
       </span>
       <span className="ml-1 text-xs italic text-muted-foreground/70">thinking…</span>
     </span>
+  );
+}
+
+function StatusPill({ icon, label }: { icon: React.ReactNode; label: string }) {
+  return (
+    <div className="mb-2 inline-flex items-center gap-2 rounded-full border border-brand/20 bg-brand/5 px-2.5 py-1 text-xs text-muted-foreground">
+      <span className="animate-pulse text-brand">{icon}</span>
+      <span>{label}</span>
+      <span className="flex gap-0.5" aria-hidden><i className="size-1 rounded-full bg-brand/60 animate-bounce" /><i className="size-1 rounded-full bg-brand/60 animate-bounce [animation-delay:150ms]" /><i className="size-1 rounded-full bg-brand/60 animate-bounce [animation-delay:300ms]" /></span>
+    </div>
   );
 }
 

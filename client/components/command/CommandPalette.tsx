@@ -52,7 +52,7 @@ function fuzzyMatch(query: string, text: string): boolean {
 export function CommandPalette() {
   const open = useChatStore((s) => s.paletteOpen);
   const setOpen = useChatStore((s) => s.setPaletteOpen);
-  const createChat = useChatStore((s) => s.createChat);
+  const startNewChat = useChatStore((s) => s.startNewChat);
   const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
   const setModel = useChatStore((s) => s.setModel);
   const model = useChatStore((s) => s.model);
@@ -86,7 +86,7 @@ export function CommandPalette() {
         group: 'Commands',
         icon: FilePlus,
         shortcut: '⌘⇧O',
-        run: () => createChat(null),
+        run: startNewChat,
       },
       {
         id: 'toggle-theme',
@@ -135,7 +135,7 @@ export function CommandPalette() {
       }));
 
     return [...commands, ...models, ...recent];
-  }, [chats, createChat, model, selectChat, setModel, setSettingsOpen]);
+  }, [chats, model, selectChat, setModel, setSettingsOpen, startNewChat]);
 
   const filtered = useMemo(() => {
     const q = query.trim();

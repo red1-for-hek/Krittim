@@ -13,6 +13,8 @@ const streamSchema = z.object({
   modelId: z.enum(['r1_xenon', 's1_neon', 'image_gen']).default('s1_neon'),
   reasoningMode: z.enum(['auto', 'fast', 'thinking']).default('auto'),
   message: z.string().min(1).max(32_000),
+  hasImage: z.boolean().default(false),
+  webSearch: z.boolean().default(false),
 });
 
 /**
@@ -28,9 +30,12 @@ const streamSchema = z.object({
 router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> => {
   const parsed = streamSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
-  const { slug, modelId, reasoningMode, message } = parsed.data;
+  const { slug, modelId, reasoningMode, message, hasImage, webSearch } = parsed.data;
 
-  const chat = await Chat.findOne({ slug, userId: req.userId });
+  let chat = await Chat.findOne({ slug, userId: req.userId });
+  if (!chat && process.env.DEV_AUTH_BYPASS === 'true' && process.env.NODE_ENV !== 'production') {
+    chat = await Chat.create({ slug, userId: req.userId, title: 'New Chat', modelId, reasoningMode });
+  }
   if (!chat) { res.status(404).json({ error: 'Chat not found' }); return; }
 
   await Message.create({ chatId: chat._id, role: 'user', content: message });
@@ -61,10 +66,28 @@ router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> =>
   let fullContent = '';
 
   try {
+    if (webSearch) {
+      res.write(`data: ${JSON.stringify({ type: 'status', content: 'searching' })}\n\n`);
+      const query = message.replace(/^search the web for\s*/i, '').trim();
+      const searchResponse = await fetch(`https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`, {
+        headers: { 'User-Agent': 'Krittim/1.0' },
+      });
+      const html = await searchResponse.text();
+      const sources = [...html.matchAll(/result__a[^>]+href="([^"]+)"[^>]*>([^<]+)/g)]
+        .slice(0, 5)
+        .map((match) => ({ url: match[1], title: match[2].replace(/&amp;/g, '&') }));
+      if (sources.length) res.write(`data: ${JSON.stringify({ type: 'sources', sources })}\n\n`);
+      contextMessages.push({
+        role: 'system',
+        content: `Web sources for this request:\n${sources.map((source) => `${source.title}: ${source.url}`).join('\n')}`,
+      });
+    }
+    res.write(`data: ${JSON.stringify({ type: 'status', content: 'thinking' })}\n\n`);
     await streamCompletion(
       modelId as ModelId,
       reasoningMode as ReasoningMode,
       contextMessages,
+      hasImage,
       (chunk) => {
         fullContent += chunk;
         res.write(`data: ${JSON.stringify({ type: 'chunk', content: chunk })}\n\n`);

@@ -2,8 +2,8 @@
  * AI Proxy — model routing + provider fallback + SSE streaming.
  *
  * R1 Xenon:  xKiro key-1 → xKiro key-2 → apinex.bond → fallback to S1 Neon chain
- * S1 Neon:   Groq (5 keys round-robin) → Together AI → OpenRouter (free models)
- * Image Gen: xKiro key-1 → xKiro key-2 (sensenova-u1.5-lite)
+ * S1 Neon:   Groq (5 keys round-robin)
+ * Image Gen: xKiro image key (XKIRO_API_KEY_image)
  *
  * All providers speak OpenAI-compatible /chat/completions.
  * On 429 / 5xx / network error → immediately try next provider.
@@ -24,10 +24,14 @@ interface Provider {
   model: string;
 }
 
+function completionUrl(baseUrl: string): string {
+  return baseUrl.endsWith('/chat/completions') ? baseUrl : `${baseUrl.replace(/\/$/, '')}/chat/completions`;
+}
+
 // Round-robin index for Groq keys
 let groqKeyIndex = 0;
 
-function getGroqProviders(): Provider[] {
+function getGroqProviders(mode: ReasoningMode): Provider[] {
   const keys = [
     process.env.GROQ_API_KEY_1,
     process.env.GROQ_API_KEY_2,
@@ -39,7 +43,13 @@ function getGroqProviders(): Provider[] {
   if (!keys.length) return [];
 
   // Start from current round-robin index, wrap around
-  const model = process.env.GROQ_MODEL ?? 'llama-3.3-70b-versatile';
+  const configuredModel = process.env.GROQ_MODEL?.trim();
+  const model =
+    mode === 'fast'
+      ? 'openai/gpt-oss-20b'
+      : mode === 'thinking'
+        ? 'openai/gpt-oss-120b'
+        : configuredModel && configuredModel !== '...' ? configuredModel : 'openai/gpt-oss-20b';
   const ordered = [...keys.slice(groqKeyIndex), ...keys.slice(0, groqKeyIndex)];
   groqKeyIndex = (groqKeyIndex + 1) % keys.length;
 
@@ -51,7 +61,7 @@ function getGroqProviders(): Provider[] {
   }));
 }
 
-function getProviders(modelId: ModelId): Provider[] {
+function getProviders(modelId: ModelId, mode: ReasoningMode, hasImage: boolean): Provider[] {
   const xkiroBase = process.env.XKIRO_BASE_URL ?? 'https://api.xkiro.com/v1';
 
   // R1 Xenon providers — qwen3.8-max via xKiro, then apinex fallback
@@ -60,13 +70,13 @@ function getProviders(modelId: ModelId): Provider[] {
       name: 'xKiro-1',
       baseUrl: xkiroBase,
       apiKey: process.env.XKIRO_API_KEY_1 ?? '',
-      model: 'qwen/qwen3.8-max:free',
+      model: process.env.XKIRO_MODEL ?? 'qwen/qwen3.8-max:free',
     },
     {
       name: 'xKiro-2',
       baseUrl: xkiroBase,
       apiKey: process.env.XKIRO_API_KEY_2 ?? '',
-      model: 'qwen/qwen3.8-max:free',
+      model: process.env.XKIRO_MODEL ?? 'qwen/qwen3.8-max:free',
     },
     {
       name: 'apinex',
@@ -76,22 +86,15 @@ function getProviders(modelId: ModelId): Provider[] {
     },
   ];
 
-  // S1 Neon providers — Groq (5 keys) → Together AI → OpenRouter
-  const neon: Provider[] = [
-    ...getGroqProviders(),
-    {
-      name: 'together',
-      baseUrl: 'https://api.together.xyz/v1',
-      apiKey: process.env.TOGETHER_API_KEY ?? '',
-      model: process.env.TOGETHER_MODEL ?? 'meta-llama/Llama-3.3-70B-Instruct-Turbo-Free',
-    },
-    {
-      name: 'openrouter',
-      baseUrl: 'https://openrouter.ai/api/v1',
-      apiKey: process.env.OPENROUTER_API_KEY ?? '',
-      model: process.env.OPENROUTER_MODEL ?? 'meta-llama/llama-3.3-70b-instruct:free',
-    },
-  ];
+  // S1 text uses Groq only. Image turns use xKiro's multimodal model.
+  const neon: Provider[] = hasImage
+    ? [{
+        name: 'xKiro-image',
+        baseUrl: xkiroBase,
+        apiKey: process.env.XKIRO_API_KEY_image ?? '',
+        model: process.env.XKIRO_MODEL ?? 'qwen/qwen3.8-max:free',
+      }]
+    : getGroqProviders(mode);
 
   if (modelId === 'r1_xenon') return [...xenon, ...neon];
   return neon;
@@ -103,23 +106,20 @@ function getProviders(modelId: ModelId): Provider[] {
  */
 export async function generateImage(prompt: string): Promise<string> {
   const xkiroBase = process.env.XKIRO_BASE_URL ?? 'https://api.xkiro.com/v1';
-  const keys = [
-    process.env.XKIRO_API_KEY_1,
-    process.env.XKIRO_API_KEY_2,
-  ].filter(Boolean) as string[];
+  const keys = [process.env.XKIRO_API_KEY_image].filter(Boolean) as string[];
 
   let lastError: Error | null = null;
 
   for (const apiKey of keys) {
     try {
-      const res = await fetch(`${xkiroBase}/chat/completions`, {
+      const res = await fetch(completionUrl(xkiroBase), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
         body: JSON.stringify({
-          model: 'sensenova/sensenova-u1.5-lite',
+          model: process.env.XKIRO_IMAGE_MODEL ?? 'sensenova/sensenova-u1.5-lite',
           messages: [{ role: 'user', content: prompt }],
           stream: false,
         }),
@@ -167,10 +167,11 @@ export async function streamCompletion(
   modelId: ModelId,
   mode: ReasoningMode,
   messages: ChatMessage[],
+  hasImage: boolean,
   onChunk: (chunk: string) => void,
   onDone: (provider: string, model: string) => void,
 ): Promise<void> {
-  const providers = getProviders(modelId);
+  const providers = getProviders(modelId, mode, hasImage);
   const fullMessages: ChatMessage[] = [
     { role: 'system', content: buildSystemPrompt(mode) },
     ...messages,
@@ -182,14 +183,14 @@ export async function streamCompletion(
     if (!provider.apiKey) continue; // skip unconfigured
 
     try {
-      const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+      const res = await fetch(completionUrl(provider.baseUrl), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${provider.apiKey}`,
-          // OpenRouter requires these headers
-          'HTTP-Referer': process.env.CLIENT_ORIGIN ?? 'http://localhost:3000',
-          'X-Title': 'Krittim AI',
+
+
+
         },
         body: JSON.stringify({
           model: provider.model,

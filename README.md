@@ -22,9 +22,9 @@ Premium conversational intelligence platform by **BNMPC ITC**.
 ## Models
 
 ### S1 Neon — Speed & Daily Driver (default)
-1. **Groq** — `llama-3.3-70b-versatile` (free, no card)
-2. **Together AI** — `Llama-3.3-70B-Instruct-Turbo-Free` (free tier)
-3. **OpenRouter** — `llama-3.3-70b-instruct:free` (free tier)
+- **Groq** — Lightning uses `openai/gpt-oss-20b`; Thinking uses `openai/gpt-oss-120b`
+- Groq keys rotate; no Together AI or OpenRouter fallback is used
+- Image turns route to xKiro's image-capable model
 
 ### R1 Xenon — Flagship Reasoning
 1. **xKiro key-1** — `muse-spark-1.3`
@@ -76,6 +76,49 @@ npm run dev
 # → http://localhost:4000
 ```
 
+## Deploying to Vercel
+
+Deploy `client/` and `server/` as two separate Vercel projects.
+
+### MongoDB Atlas
+
+1. In Atlas, open **Network Access** and allow the Vercel serverless egress IPs. For a quick prototype, `0.0.0.0/0` works but should be replaced with a restricted setup when available.
+2. In **Database Access**, create a database user and use its password in the connection string.
+3. Use a URI containing the `krittim` database name:
+
+```env
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster>.mongodb.net/krittim?retryWrites=true&w=majority
+```
+
+### Server Vercel project
+
+Set the project root to `server/`. The repository includes [`server/vercel.json`](./server/vercel.json), which exposes the Express API under `/api/*`.
+
+Add every variable from `server/.env` in **Vercel → Project Settings → Environment Variables**, especially:
+
+```env
+NODE_ENV=production
+DEV_AUTH_BYPASS=false
+MONGODB_URI=...
+JWT_SECRET=...
+JWT_REFRESH_SECRET=...
+JWT_EXPIRES_IN=15m
+JWT_REFRESH_EXPIRES_IN=30d
+CLIENT_ORIGIN=https://<your-client-project>.vercel.app
+```
+
+Also add the OAuth and AI provider variables. Do not commit `.env` files or paste provider keys into client-side variables.
+
+### Client Vercel project
+
+Set the project root to `client/` and add:
+
+```env
+NEXT_PUBLIC_API_URL=https://<your-server-project>.vercel.app
+```
+
+Deploy the server first, copy its Vercel URL into `CLIENT_ORIGIN` and the client variable above, then redeploy both projects.
+
 ---
 
 ## API Keys — Where to Get Them (All Free)
@@ -84,17 +127,17 @@ npm run dev
 - https://cloud.mongodb.com → free M0 cluster → copy connection URI
 - No credit card required
 
-### Groq (S1 Neon — primary, best choice)
+### Groq (S1 Neon — only provider)
 - https://console.groq.com → sign up → API Keys → Create Key
 - **Completely free**, no credit card, 14,400 req/day, 500K tokens/day
 - Fastest inference available
 
-### Together AI (S1 Neon — fallback 1)
+### Together AI (not used)
 - https://api.together.xyz → sign up → API Keys
 - Free tier with `-Free` suffix models, no credit card
 - `meta-llama/Llama-3.3-70B-Instruct-Turbo-Free` is permanently free
 
-### OpenRouter (S1 Neon — fallback 2)
+### OpenRouter (not used)
 - https://openrouter.ai → sign up → Keys → Create Key
 - Models ending in `:free` are always free, no credit card for free tier
 - `meta-llama/llama-3.3-70b-instruct:free`
@@ -103,6 +146,7 @@ npm run dev
 - https://xkiro.com → sign up → API Keys
 - Create **2 accounts** → get 2 keys → put in `XKIRO_API_KEY_1` and `XKIRO_API_KEY_2`
 - If key-1 hits rate limit, key-2 takes over automatically
+- Put the separate multimodal/image key in `XKIRO_API_KEY_image`
 
 ### apinex.bond (R1 Xenon — fallback)
 - https://apinex.bond → sign up → API section

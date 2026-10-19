@@ -1,11 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { Suspense, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { selectChatBySlug, useChatStore } from '@/store/chatStore';
 
-export default function ChatPage() {
+function ChatPageContent() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
   const slug = params?.slug ?? '';
@@ -20,14 +20,24 @@ export default function ChatPage() {
       router.replace('/');
       return;
     }
+
     if (activeChatId !== chat.id) {
       selectChat(chat.id);
     }
+
   }, [chat, activeChatId, selectChat, router]);
 
   return (
     <main className="relative min-h-dvh w-full overflow-hidden">
       <AppShell />
     </main>
+  );
+}
+
+export default function ChatPage() {
+  return (
+    <Suspense fallback={null}>
+      <ChatPageContent />
+    </Suspense>
   );
 }

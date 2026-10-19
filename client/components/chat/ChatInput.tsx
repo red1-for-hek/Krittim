@@ -8,8 +8,11 @@ import {
   ChevronDown,
   FileText,
   ImageIcon,
+  ImagePlus,
   Mic,
   Paperclip,
+  Plus,
+  Search,
   Wand2,
   Square,
   X,
@@ -71,6 +74,8 @@ export function ChatInput({ centered = false }: ChatInputProps) {
   const [value, setValue] = useState('');
   const [files, setFiles] = useState<PendingFile[]>([]);
   const [modeMenuOpen, setModeMenuOpen] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
+  const [webSearch, setWebSearch] = useState(false);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -130,7 +135,8 @@ export function ChatInput({ centered = false }: ChatInputProps) {
     const trimmed = value.trim();
     if (!canSend || (!trimmed && files.length === 0)) return;
     const metas: AttachmentMeta[] = files.map((f) => f.meta);
-    sendMessage(trimmed || `Shared ${metas.length} file${metas.length === 1 ? '' : 's'}`, metas);
+    sendMessage(trimmed || `Shared ${metas.length} file${metas.length === 1 ? '' : 's'}`, metas, { webSearch });
+    setWebSearch(false);
     setValue('');
     setFiles((prev) => {
       prev.forEach((f) => f.previewUrl && URL.revokeObjectURL(f.previewUrl));
@@ -266,16 +272,29 @@ export function ChatInput({ centered = false }: ChatInputProps) {
                 aria-hidden
                 tabIndex={-1}
               />
-              <button
-                type="button"
-                onClick={() => fileInputRef.current?.click()}
-                aria-label="Attach documents or images"
-                title="Attach documents or images"
-                className="group flex min-h-[44px] items-center gap-1.5 rounded-xl border border-hairline bg-surface px-2.5 py-1.5 text-xs font-medium text-muted-foreground outline-none transition-colors duration-150 hover:border-brand/30 hover:bg-surface-hover hover:text-foreground active:scale-95 sm:min-h-0"
-              >
-                <Paperclip className="size-3.5 text-muted-foreground transition-colors group-hover:text-brand" strokeWidth={2} />
-                <span className="hidden sm:inline">Attach</span>
-              </button>
+              <DropdownMenu open={actionMenuOpen} onOpenChange={setActionMenuOpen}>
+                <DropdownMenuTrigger
+                  className="grid size-8 place-items-center rounded-xl border border-hairline bg-surface text-muted-foreground outline-none transition-colors hover:border-brand/30 hover:bg-surface-hover hover:text-foreground"
+                  aria-label="Add to prompt"
+                  title="Add to prompt"
+                >
+                  <Plus className="size-4" strokeWidth={2.2} />
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-48 rounded-2xl border-white/10 bg-popover/95 p-1.5 backdrop-blur-xl">
+                  <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="gap-2 rounded-xl px-2.5 py-2 text-xs">
+                    <Paperclip className="size-4 text-muted-foreground" />
+                    Attach files
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setValue((current) => current || 'Create an image of '); setActionMenuOpen(false); textareaRef.current?.focus(); }} className="gap-2 rounded-xl px-2.5 py-2 text-xs">
+                    <ImagePlus className="size-4 text-muted-foreground" />
+                    Create image
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => { setValue((current) => current || 'Search the web for '); setWebSearch(true); setActionMenuOpen(false); textareaRef.current?.focus(); }} className="gap-2 rounded-xl px-2.5 py-2 text-xs">
+                    <Search className="size-4 text-muted-foreground" />
+                    Web search
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
               <button
                 type="button"

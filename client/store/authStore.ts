@@ -10,7 +10,7 @@ interface AuthState {
   authMode: 'login' | 'signup';
   openAuthModal: (mode?: 'login' | 'signup') => void;
   closeAuthModal: () => void;
-  login: (provider: 'google' | 'github' | 'discord' | 'email', email?: string) => Promise<void>;
+  login: (provider: 'google' | 'github' | 'discord' | 'email', email?: string, password?: string, signup?: boolean) => Promise<void>;
   logout: () => void;
   setUser: (user: UserProfile | null) => void;
 }
@@ -58,14 +58,35 @@ export const useAuthStore = create<AuthState>()(
       openAuthModal: (mode = 'login') => set({ authModalOpen: true, authMode: mode }),
       closeAuthModal: () => set({ authModalOpen: false }),
 
-      login: async (provider: 'google' | 'github' | 'discord' | 'email', email?: string) => {
+      login: async (provider, email, password, signup = false) => {
         set({ isLoading: true });
-        await new Promise((resolve) => setTimeout(resolve, 900));
-        const user = { ...MOCK_USERS[provider], ...(email ? { email, initials: email.slice(0, 2).toUpperCase() } : {}) };
-        set({ user, isAuthenticated: true, isLoading: false, authModalOpen: false });
+        if (provider !== 'email') {
+          await new Promise((resolve) => setTimeout(resolve, 900));
+          set({ user: { ...MOCK_USERS[provider] }, isAuthenticated: true, isLoading: false, authModalOpen: false });
+          return;
+        }
+        try {
+          const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000'}/api/auth/${signup ? 'signup' : 'login'}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(signup
+              ? { name: email?.split('@')[0] ?? 'Krittim User', email, password }
+              : { email, password }),
+          });
+          const data = await response.json();
+          if (!response.ok) throw new Error(data.error ?? 'Authentication failed');
+          localStorage.setItem('krittim-access-token', data.accessToken);
+          localStorage.setItem('krittim-refresh-token', data.refreshToken);
+          set({ user: { ...MOCK_USERS.email, name: data.user.name, email: data.user.email }, isAuthenticated: true, isLoading: false, authModalOpen: false });
+        } catch (error) {
+          set({ isLoading: false });
+          throw error;
+        }
       },
 
       logout: () => {
+        localStorage.removeItem('krittim-access-token');
+        localStorage.removeItem('krittim-refresh-token');
         set({ user: null, isAuthenticated: false });
       },
 

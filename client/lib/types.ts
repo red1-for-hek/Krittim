@@ -23,6 +23,8 @@ export interface ChatMessage {
   pending?: boolean;
   /** Files attached to this turn. */
   attachments?: AttachmentMeta[];
+  sources?: { title: string; url: string }[];
+  status?: "searching" | "thinking";
 }
 
 /* -------------------------------- Chats ----------------------------------- */

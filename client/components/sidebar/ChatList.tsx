@@ -172,7 +172,7 @@ export function ProjectsSection() {
   const chats = useChatStore((s) => s.chats);
   const collapsed = useChatStore((s) => s.projectsCollapsed);
   const toggleCollapsed = useChatStore((s) => s.toggleProjectsCollapsed);
-  const createChat = useChatStore((s) => s.createChat);
+  const startNewChat = useChatStore((s) => s.startNewChat);
   const now = useCurrentTime();
 
   const [openProjects, setOpenProjects] = useState<Record<string, boolean>>({});
@@ -226,7 +226,7 @@ export function ProjectsSection() {
                     <button
                       type="button"
                       aria-label={`New chat in ${project.name}`}
-                      onClick={() => createChat(project.id)}
+                      onClick={startNewChat}
                       className="grid size-7 shrink-0 place-items-center rounded-md text-muted-foreground opacity-0 outline-none transition-all hover:bg-surface-hover hover:text-foreground focus-visible:opacity-100 group-hover/proj:opacity-100 active:scale-90"
                     >
                       <Plus className="size-3" strokeWidth={2.2} />

@@ -39,6 +39,7 @@ export function AuthModal() {
   const [emailView, setEmailView] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
 
   const title = mode === 'login' ? 'Welcome back' : 'Create your account';
   const subtitle = mode === 'login' ? 'Log in to sync chats across devices.' : 'Sign up to save chats and sync everywhere.';
@@ -49,7 +50,10 @@ export function AuthModal() {
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    login('email' as OAuthProvider, email);
+    setError('');
+    void login('email', email, password, mode === 'signup').catch((reason: unknown) => {
+      setError(reason instanceof Error ? reason.message : 'Authentication failed');
+    });
   };
 
   return (
@@ -88,6 +92,7 @@ export function AuthModal() {
             >
               {isLoading ? <Loader2 className="size-4 animate-spin" /> : (mode === 'login' ? 'Log in' : 'Create account')}
             </button>
+            {error && <p className="text-center text-xs text-red-400">{error}</p>}
             <button type="button" onClick={() => setEmailView(false)} className="text-center text-[12px] text-muted-foreground transition-colors hover:text-foreground">
               ← Back to all options
             </button>
