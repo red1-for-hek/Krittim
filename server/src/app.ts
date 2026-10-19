@@ -11,8 +11,20 @@ import settingsRouter from './routes/settings.js';
 const app = express();
 
 app.use(helmet());
+const allowedOrigins = new Set([
+  'http://localhost:3000',
+  'https://krittim-client.vercel.app',
+  ...(process.env.CLIENT_ORIGIN ?? '').split(',').map((origin) => origin.trim().replace(/\/$/, '')).filter(Boolean),
+]);
+
 app.use(cors({
-  origin: process.env.CLIENT_ORIGIN ?? 'http://localhost:3000',
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.has(origin.replace(/\/$/, ''))) {
+      callback(null, true);
+      return;
+    }
+    callback(new Error('Origin not allowed by CORS'));
+  },
   credentials: true,
 }));
 

@@ -253,7 +253,9 @@ export interface ChatState {
 let roundTripTimer: ReturnType<typeof setTimeout> | null = null;
 let streamInterval: ReturnType<typeof setInterval> | null = null;
 let aiController: AbortController | null = null;
-const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
+const apiBaseUrl = (
+  process.env.NEXT_PUBLIC_API_URL ?? 'https://krittim-server.vercel.app'
+).replace(/\/$/, '');
 
 const cancelInflight = () => {
   if (roundTripTimer) clearTimeout(roundTripTimer);

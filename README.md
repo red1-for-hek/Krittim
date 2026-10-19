@@ -114,7 +114,7 @@ Also add the OAuth and AI provider variables. Do not commit `.env` files or past
 Set the project root to `client/` and add:
 
 ```env
-NEXT_PUBLIC_API_URL=https://<your-server-project>.vercel.app
+NEXT_PUBLIC_API_URL=https://krittim-server.vercel.app
 ```
 
 Deploy the server first, copy its Vercel URL into `CLIENT_ORIGIN` and the client variable above, then redeploy both projects.

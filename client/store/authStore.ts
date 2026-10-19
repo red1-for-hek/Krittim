@@ -66,7 +66,10 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
         try {
-          const response = await fetch(`${(process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '')}/api/auth/${signup ? 'signup' : 'login'}`, {
+          const apiBaseUrl = (
+            process.env.NEXT_PUBLIC_API_URL ?? 'https://krittim-server.vercel.app'
+          ).replace(/\/$/, '');
+          const response = await fetch(`${apiBaseUrl}/api/auth/${signup ? 'signup' : 'login'}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(signup
