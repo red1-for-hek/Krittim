@@ -47,6 +47,7 @@ app.use('/api/auth', authRouter);
 app.use('/api/chats', chatsRouter);
 app.use('/api/ai', aiLimiter, aiRouter);
 app.use('/api/settings', settingsRouter);
+app.get('/', (_req, res) => res.json({ ok: true, service: 'krittim-server' }));
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
 

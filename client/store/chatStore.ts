@@ -583,7 +583,11 @@ export const useChatStore = create<ChatState>()(
             });
             if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
             const message = error instanceof Error ? error.message : 'AI request failed';
-            toast.error(message.includes('Failed to fetch') ? 'Cannot reach the AI server. Check that the backend is running.' : message);
+            toast.error(
+              message.includes('Failed to fetch')
+                ? `Cannot reach the AI server at ${apiBaseUrl || 'the current site'}`
+                : message,
+            );
           }
           useChatStore.setState({ isStreaming: false, stopRequested: false });
         }
