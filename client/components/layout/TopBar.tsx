@@ -3,7 +3,6 @@
 import { MessagesSquare } from 'lucide-react';
 
 import { ModelSwitcher } from '@/components/topbar/ModelSwitcher';
-import { ProfileButton } from '@/components/topbar/ProfileButton';
 import { selectActiveChat, useChatStore } from '@/store/chatStore';
 
 /**
@@ -46,9 +45,6 @@ export function TopBar() {
         )}
       </div>
 
-      <div className="flex shrink-0 items-center gap-2">
-        <ProfileButton />
-      </div>
     </header>
   );
 }

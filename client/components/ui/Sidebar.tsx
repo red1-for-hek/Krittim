@@ -6,6 +6,7 @@ import {
   SlidersHorizontal,
   Hexagon,
   SquarePen,
+  LogOut,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -14,6 +15,8 @@ import { ChatList, ProjectsSection } from '@/components/sidebar/ChatList';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/store/chatStore';
+import { AuthModal } from '@/components/auth/AuthModal';
+import { useAuthStore } from '@/store/authStore';
 
 interface SidebarProps {
   onNavigate?: (id: string) => void;
@@ -80,6 +83,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
   const setSidebarOpen = useChatStore((s) => s.setSidebarOpen);
   const startNewChat = useChatStore((s) => s.startNewChat);
   const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
+  const { user, isAuthenticated, logout, openAuthModal } = useAuthStore();
 
   const [activeNav, setActiveNav] = useState('new');
 
@@ -180,6 +184,36 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
 
       {/* footer */}
       <div className={cn('border-t border-hairline p-3', collapsed && 'flex justify-center')}>
+        {isAuthenticated ? (
+          <div className={cn('mb-3 flex items-center gap-2 rounded-xl border border-hairline bg-surface-soft p-2', collapsed && 'border-0 bg-transparent p-0')}>
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-[11px] font-semibold text-white">
+              {user?.initials ?? '?'}
+            </span>
+            {!collapsed && (
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="truncate text-xs font-medium text-foreground">{user?.name}</span>
+                <span className="truncate text-[10px] text-muted-foreground">{user?.email}</span>
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={logout}
+              aria-label="Log out"
+              className="grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-brand/50"
+            >
+              <LogOut className="size-4" strokeWidth={1.9} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => openAuthModal('login')}
+            className={cn('mb-3 flex w-full items-center gap-2 rounded-xl border border-hairline bg-surface-soft p-2 text-left text-xs text-muted-foreground hover:text-foreground', collapsed && 'justify-center border-0 bg-transparent p-0')}
+          >
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-surface-hover text-xs">?</span>
+            {!collapsed && <span>Log in to sync chats</span>}
+          </button>
+        )}
         {!collapsed ? (
           <div className="flex items-center gap-2 px-1 text-[11px] text-muted-foreground/60">
             <Hexagon className="size-3 shrink-0" strokeWidth={1.8} />
@@ -201,6 +235,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
           </Tooltip>
         )}
       </div>
+      <AuthModal />
     </aside>
   );
 }

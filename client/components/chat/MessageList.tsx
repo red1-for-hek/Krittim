@@ -4,6 +4,9 @@ import { Check, Copy, FlaskConical, Gauge, Cpu, Globe2, BrainCircuit, ExternalLi
 import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkMath from 'remark-math';
+import rehypeKatex from 'rehype-katex';
+import 'katex/dist/katex.min.css';
 
 import { cn } from '@/lib/utils';
 import type { ChatMessage, ModelId } from '@/lib/types';
@@ -234,7 +237,11 @@ const AssistantBubble = memo(function AssistantBubble({
           {message.content === '' && streaming ? (
             <ThinkingDots />
           ) : (
-            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={markdownComponents}
+            >
               {message.content}
             </ReactMarkdown>
           )}

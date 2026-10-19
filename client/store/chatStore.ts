@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
+import { getApiBaseUrl, refreshAccessToken } from '@/store/authStore';
 
 import {
   PERSISTED_STATE_KEYS,
@@ -253,9 +254,7 @@ export interface ChatState {
 let roundTripTimer: ReturnType<typeof setTimeout> | null = null;
 let streamInterval: ReturnType<typeof setInterval> | null = null;
 let aiController: AbortController | null = null;
-const apiBaseUrl = (
-  process.env.NEXT_PUBLIC_API_URL ?? 'https://krittim-server.vercel.app'
-).replace(/\/$/, '');
+const apiBaseUrl = getApiBaseUrl();
 
 const cancelInflight = () => {
   if (roundTripTimer) clearTimeout(roundTripTimer);
@@ -521,23 +520,33 @@ export const useChatStore = create<ChatState>()(
         };
       });
 
+      if (typeof window !== 'undefined' && window.location.pathname === '/') {
+        window.history.pushState({}, '', `/chat/${chat.slug}`);
+      }
+
       const assistantId = uid('msg');
       get().addMessage(chatId, { id: assistantId, role: 'assistant', content: '', model, mode: reasoningMode });
       const controller = new AbortController();
       roundTripTimer = setTimeout(() => undefined, 0);
       void (async () => {
         try {
-          const response = await fetch(`${apiBaseUrl}/api/ai/stream`, {
+          const request = (token: string | null) => fetch(`${apiBaseUrl}/api/ai/stream`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
-              ...(typeof window !== 'undefined' && localStorage.getItem('krittim-access-token')
-                ? { Authorization: `Bearer ${localStorage.getItem('krittim-access-token')}` }
+              ...(token
+                ? { Authorization: `Bearer ${token}` }
                 : {}),
             },
             body: JSON.stringify({ slug: chat.slug, modelId: model, reasoningMode, message: trimmed, hasImage: attachments?.some((file) => file.type.startsWith('image/')) ?? false, webSearch: options?.webSearch ?? false }),
             signal: controller.signal,
           });
+          let token = typeof window !== 'undefined' ? localStorage.getItem('krittim-access-token') : null;
+          let response = await request(token);
+          if (response.status === 401) {
+            token = await refreshAccessToken();
+            if (token) response = await request(token);
+          }
           if (!response.ok || !response.body) {
             const body = await response.text().catch(() => '');
             throw new Error(`AI request failed (${response.status}): ${body || 'empty response'}`);
@@ -557,9 +566,6 @@ export const useChatStore = create<ChatState>()(
               if (data === '[DONE]') continue;
               const event = JSON.parse(data) as { type: string; content?: string; sources?: { title: string; url: string }[]; message?: string };
               if (event.type === 'chunk' && event.content) {
-                if (typeof window !== 'undefined' && window.location.pathname === '/') {
-                  window.history.pushState({}, '', `/chat/${chat.slug}`);
-                }
                 const current = useChatStore.getState().messagesByChatId[chatId]?.find((item) => item.id === assistantId)?.content ?? '';
                 patchMessageContent(chatId, assistantId, current + event.content);
               } else if (event.type === 'sources') {
@@ -572,16 +578,14 @@ export const useChatStore = create<ChatState>()(
           useChatStore.setState({ isStreaming: false, stopRequested: false });
         } catch (error) {
           if ((error as Error).name !== 'AbortError') {
-            useChatStore.setState((state) => {
-              const messages = { ...state.messagesByChatId };
-              delete messages[chatId];
-              return {
-                chats: state.chats.filter((item) => item.id !== chatId),
-                messagesByChatId: messages,
-                activeChatId: null,
-              };
-            });
-            if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
+            useChatStore.setState((state) => ({
+              messagesByChatId: {
+                ...state.messagesByChatId,
+                [chatId]: (state.messagesByChatId[chatId] ?? []).filter(
+                  (item) => !(item.role === 'assistant' && item.id === assistantId && item.content === ''),
+                ),
+              },
+            }));
             const message = error instanceof Error ? error.message : 'AI request failed';
             toast.error(
               message.includes('Failed to fetch')

@@ -2,6 +2,27 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { UserProfile } from '@/lib/types';
 
+export const getApiBaseUrl = (): string =>
+  (process.env.NEXT_PUBLIC_API_URL ?? 'https://krittim-server.vercel.app').replace(/\/$/, '');
+
+export async function refreshAccessToken(): Promise<string | null> {
+  if (typeof window === 'undefined') return null;
+  const refreshToken = localStorage.getItem('krittim-refresh-token');
+  if (!refreshToken) return null;
+
+  const response = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ refreshToken }),
+  });
+  if (!response.ok) return null;
+  const data = await response.json() as { accessToken?: string; refreshToken?: string };
+  if (!data.accessToken) return null;
+  localStorage.setItem('krittim-access-token', data.accessToken);
+  if (data.refreshToken) localStorage.setItem('krittim-refresh-token', data.refreshToken);
+  return data.accessToken;
+}
+
 interface AuthState {
   user: UserProfile | null;
   isAuthenticated: boolean;
@@ -66,9 +87,7 @@ export const useAuthStore = create<AuthState>()(
           return;
         }
         try {
-          const apiBaseUrl = (
-            process.env.NEXT_PUBLIC_API_URL ?? 'https://krittim-server.vercel.app'
-          ).replace(/\/$/, '');
+          const apiBaseUrl = getApiBaseUrl();
           const response = await fetch(`${apiBaseUrl}/api/auth/${signup ? 'signup' : 'login'}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
