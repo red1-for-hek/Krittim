@@ -253,7 +253,7 @@ export interface ChatState {
 let roundTripTimer: ReturnType<typeof setTimeout> | null = null;
 let streamInterval: ReturnType<typeof setInterval> | null = null;
 let aiController: AbortController | null = null;
-const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000').replace(/\/$/, '');
+const apiBaseUrl = (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
 
 const cancelInflight = () => {
   if (roundTripTimer) clearTimeout(roundTripTimer);
@@ -581,7 +581,7 @@ export const useChatStore = create<ChatState>()(
             });
             if (typeof window !== 'undefined') window.history.pushState({}, '', '/');
             const message = error instanceof Error ? error.message : 'AI request failed';
-            toast.error(message.includes('Failed to fetch') ? `Cannot reach AI server at ${apiBaseUrl}` : message);
+            toast.error(message.includes('Failed to fetch') ? 'Cannot reach the AI server. Check that the backend is running.' : message);
           }
           useChatStore.setState({ isStreaming: false, stopRequested: false });
         }
