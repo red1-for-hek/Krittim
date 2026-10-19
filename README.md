@@ -99,6 +99,9 @@ Add every variable from `server/.env` in **Vercel → Project Settings → Envir
 ```env
 NODE_ENV=production
 DEV_AUTH_BYPASS=false
+DEMO_USER_NAME=Krittim Demo User
+DEMO_USER_EMAIL=
+DEMO_USER_PASSWORD=
 MONGODB_URI=...
 JWT_SECRET=...
 JWT_REFRESH_SECRET=...
@@ -108,6 +111,10 @@ CLIENT_ORIGIN=https://<your-client-project>.vercel.app
 ```
 
 Also add the OAuth and AI provider variables. Do not commit `.env` files or paste provider keys into client-side variables.
+
+For temporary testing, set `DEMO_USER_EMAIL` and `DEMO_USER_PASSWORD` in the
+server environment. The account is created automatically when the database
+connection starts. Remove those variables after testing.
 
 ### Client Vercel project
 

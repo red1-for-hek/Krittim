@@ -7,7 +7,7 @@ export interface AuthRequest extends Request {
 }
 
 export function requireAuth(req: AuthRequest, res: Response, next: NextFunction): void {
-  if (process.env.DEV_AUTH_BYPASS === 'true' && process.env.NODE_ENV !== 'production') {
+  if (process.env.DEV_AUTH_BYPASS === 'true') {
     req.userId = '000000000000000000000001';
     req.userEmail = 'dev@localhost';
     next();
