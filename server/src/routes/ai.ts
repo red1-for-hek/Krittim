@@ -33,10 +33,20 @@ router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> =>
   const { slug, modelId, reasoningMode, message, hasImage, webSearch } = parsed.data;
 
   let chat = await Chat.findOne({ slug, userId: req.userId });
-  if (!chat && process.env.DEV_AUTH_BYPASS === 'true' && process.env.NODE_ENV !== 'production') {
-    chat = await Chat.create({ slug, userId: req.userId, title: 'New Chat', modelId, reasoningMode });
+  if (!chat) {
+    const existingChat = await Chat.findOne({ slug }).select({ userId: 1 }).lean();
+    if (existingChat) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    chat = await Chat.create({
+      slug,
+      userId: req.userId,
+      title: 'New Chat',
+      modelId,
+      reasoningMode,
+    });
   }
-  if (!chat) { res.status(404).json({ error: 'Chat not found' }); return; }
 
   await Message.create({ chatId: chat._id, role: 'user', content: message });
 
