@@ -96,8 +96,9 @@ router.post('/refresh', async (req: Request, res: Response): Promise<void> => {
     const user = await User.findById(payload.userId);
     if (!user || user.refreshToken !== refreshToken) { res.status(401).json({ error: 'Invalid refresh token' }); return; }
     const tokens = issueTokens(user._id.toString(), user.email);
-    await User.findByIdAndUpdate(user._id, { refreshToken: tokens.refreshToken });
-    res.json(tokens);
+    // Keep the refresh token stable so multiple tabs and simultaneous requests
+    // cannot invalidate one another during an access-token renewal.
+    res.json({ accessToken: tokens.accessToken, refreshToken });
   } catch { res.status(401).json({ error: 'Invalid or expired refresh token' }); }
 });
 

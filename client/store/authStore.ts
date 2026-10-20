@@ -5,22 +5,45 @@ import type { UserProfile } from '@/lib/types';
 export const getApiBaseUrl = (): string =>
   (process.env.NEXT_PUBLIC_API_URL ?? 'https://krittim-server.vercel.app').replace(/\/$/, '');
 
+let refreshPromise: Promise<string | null> | null = null;
+
 export async function refreshAccessToken(): Promise<string | null> {
   if (typeof window === 'undefined') return null;
-  const refreshToken = localStorage.getItem('krittim-refresh-token');
-  if (!refreshToken) return null;
+  if (refreshPromise) return refreshPromise;
 
-  const response = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ refreshToken }),
+  refreshPromise = (async () => {
+    try {
+      const refreshToken = localStorage.getItem('krittim-refresh-token');
+      if (!refreshToken) return null;
+      const response = await fetch(`${getApiBaseUrl()}/api/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!response.ok) return null;
+      const data = await response.json() as { accessToken?: string; refreshToken?: string };
+      if (!data.accessToken) return null;
+      localStorage.setItem('krittim-access-token', data.accessToken);
+      if (data.refreshToken) localStorage.setItem('krittim-refresh-token', data.refreshToken);
+      return data.accessToken;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
+export function expireSession(): void {
+  if (typeof window === 'undefined') return;
+  localStorage.removeItem('krittim-access-token');
+  localStorage.removeItem('krittim-refresh-token');
+  useAuthStore.setState({
+    user: null,
+    isAuthenticated: false,
+    authModalOpen: true,
+    authMode: 'login',
   });
-  if (!response.ok) return null;
-  const data = await response.json() as { accessToken?: string; refreshToken?: string };
-  if (!data.accessToken) return null;
-  localStorage.setItem('krittim-access-token', data.accessToken);
-  if (data.refreshToken) localStorage.setItem('krittim-refresh-token', data.refreshToken);
-  return data.accessToken;
 }
 
 interface AuthState {

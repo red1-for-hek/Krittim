@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
-import { getApiBaseUrl, refreshAccessToken } from '@/store/authStore';
+import { expireSession, getApiBaseUrl, refreshAccessToken } from '@/store/authStore';
 
 import {
   PERSISTED_STATE_KEYS,
@@ -549,6 +549,10 @@ export const useChatStore = create<ChatState>()(
           }
           if (!response.ok || !response.body) {
             const body = await response.text().catch(() => '');
+            if (response.status === 401) {
+              expireSession();
+              throw new Error('SESSION_EXPIRED');
+            }
             throw new Error(`AI request failed (${response.status}): ${body || 'empty response'}`);
           }
           const reader = response.body.getReader();
@@ -587,6 +591,10 @@ export const useChatStore = create<ChatState>()(
               },
             }));
             const message = error instanceof Error ? error.message : 'AI request failed';
+            if (message === 'SESSION_EXPIRED') {
+              useChatStore.setState({ isStreaming: false, stopRequested: false });
+              return;
+            }
             toast.error(
               message.includes('Failed to fetch')
                 ? `Cannot reach the AI server at ${apiBaseUrl || 'the current site'}`
