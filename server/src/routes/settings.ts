@@ -13,6 +13,8 @@ const settingsSchema = z.object({
   enterToSend: z.boolean().optional(),
   streamResponses: z.boolean().optional(),
   aiMemory: z.boolean().optional(),
+  responseStyle: z.enum(['concise', 'balanced', 'thorough']).optional(),
+  customInstructions: z.string().max(4000).optional(),
 });
 
 router.patch('/', async (req: AuthRequest, res: Response): Promise<void> => {

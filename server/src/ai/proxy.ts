@@ -11,6 +11,14 @@
 
 export type ModelId = 'r1_xenon' | 's1_neon' | 'image_gen';
 export type ReasoningMode = 'auto' | 'fast' | 'thinking';
+export type ResponseStyle = 'concise' | 'balanced' | 'thorough';
+
+export interface StreamOptions {
+  /** Standing user instructions (ChatGPT "custom instructions"-style). */
+  customInstructions?: string;
+  /** How long/detailed answers should be. */
+  responseStyle?: ResponseStyle;
+}
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant';
@@ -156,7 +164,7 @@ export async function generateImage(prompt: string): Promise<string> {
  * output-format discipline, and calibrated honesty. Kept token-lean so free
  * providers stay fast, but structured so answers feel premium and consistent.
  */
-function buildSystemPrompt(mode: ReasoningMode): string {
+function buildSystemPrompt(mode: ReasoningMode, opts: StreamOptions = {}): string {
   const identity = `You are Krittim, a premium reasoning assistant engineered by BNMPC IT Club. You are precise, calm, and genuinely useful. You think like a senior engineer and explain like a great teacher.`;
 
   const protocol = `REASONING PROTOCOL (follow silently — never narrate these steps unless the user asks to see your work):
@@ -176,13 +184,29 @@ function buildSystemPrompt(mode: ReasoningMode): string {
 - If a request is ambiguous, make a reasonable assumption, state it, and proceed — do not stall with a wall of clarifying questions.
 - Refuse clearly and briefly when something is unsafe or disallowed, then offer the closest safe alternative.`;
 
-  if (mode === 'fast') {
-    return `${identity}\n${style}\nThis is LIGHTNING mode: answer directly and immediately. Skip exhaustive verification, give the most likely correct answer fast, and keep it short.`;
-  }
-  if (mode === 'thinking') {
-    return `${identity}\n${protocol}\n${style}\nThis is THINKING mode: take the space to reason carefully. Work through the hard parts step by step, surface the key trade-offs, and end with a clear, confident conclusion. Depth over speed.`;
-  }
-  return `${identity}\n${protocol}\n${style}\nBalance speed and depth: solve directly, verify the risky parts, and stop once the answer is complete and correct.`;
+  // Response-length overlay (user preference).
+  const length =
+    opts.responseStyle === 'concise'
+      ? 'LENGTH: keep it tight — answer in as few words as possible while staying correct.'
+      : opts.responseStyle === 'thorough'
+        ? 'LENGTH: be comprehensive — cover edge cases, give concrete examples, and structure the full picture.'
+        : '';
+
+  // Standing user instructions sit last so they take precedence.
+  const personal = opts.customInstructions?.trim()
+    ? `The user has set these standing instructions. Honor them for every reply:\n${opts.customInstructions.trim()}`
+    : '';
+
+  const modeLine =
+    mode === 'fast'
+      ? 'This is LIGHTNING mode: answer directly and immediately. Skip exhaustive verification, give the most likely correct answer fast, and keep it short.'
+      : mode === 'thinking'
+        ? 'This is THINKING mode: take the space to reason carefully. Work through the hard parts step by step, surface the key trade-offs, and end with a clear, confident conclusion. Depth over speed.'
+        : 'Balance speed and depth: solve directly, verify the risky parts, and stop once the answer is complete and correct.';
+
+  return [identity, protocol, style, honesty, length, personal, modeLine]
+    .filter(Boolean)
+    .join('\n');
 }
 
 /**
@@ -197,10 +221,11 @@ export async function streamCompletion(
   hasImage: boolean,
   onChunk: (chunk: string) => void,
   onDone: (provider: string, model: string) => void,
+  opts: StreamOptions = {},
 ): Promise<void> {
   const providers = getProviders(modelId, mode, hasImage);
   const fullMessages: ChatMessage[] = [
-    { role: 'system', content: buildSystemPrompt(mode) },
+    { role: 'system', content: buildSystemPrompt(mode, opts) },
     ...messages,
   ];
 
@@ -219,6 +244,8 @@ export async function streamCompletion(
 
 
         },
+        // Bound every provider call so a stalled endpoint can never hang a stream.
+        signal: AbortSignal.timeout(75_000),
         body: JSON.stringify({
           model: provider.model,
           messages: fullMessages,

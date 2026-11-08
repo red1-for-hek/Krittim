@@ -11,6 +11,7 @@ import {
   type ModelId,
   type Project,
   type ReasoningMode,
+  type ResponseStyle,
   type ThemePreference,
 } from '@/lib/types';
 
@@ -135,6 +136,16 @@ export interface ChatState {
   reasoningMode: ReasoningMode;
   setReasoningMode: (mode: ReasoningMode) => void;
 
+  /* composer tools + personalization (persisted) */
+  webSearch: boolean;
+  setWebSearch: (on: boolean) => void;
+  imageMode: boolean;
+  setImageMode: (on: boolean) => void;
+  customInstructions: string;
+  setCustomInstructions: (text: string) => void;
+  responseStyle: ResponseStyle;
+  setResponseStyle: (style: ResponseStyle) => void;
+
   /* multi-chat history */
   projects: Project[];
   chats: Chat[];
@@ -151,6 +162,12 @@ export interface ChatState {
   clearAllChats: () => void;
   /** Danger-zone nuclear option — wipes every chat AND the localStorage snapshot. */
   resetAllData: () => void;
+
+  /* projects (folders) */
+  createProject: (name: string, emoji?: string, color?: string) => string;
+  renameProject: (id: string, name: string) => void;
+  deleteProject: (id: string) => void;
+  assignChatToProject: (chatId: string, projectId: string | null) => void;
   addMessage: (
     chatId: string,
     message: Omit<ChatMessage, 'id' | 'createdAt'> & Partial<Pick<ChatMessage, 'id' | 'createdAt'>>,
@@ -159,6 +176,10 @@ export interface ChatState {
   /* streaming simulation */
   sendMessage: (content: string, attachments?: AttachmentMeta[], options?: { webSearch?: boolean }) => void;
   stopStreaming: () => void;
+  /** Re-answer the last user turn (drops the trailing assistant reply). */
+  regenerate: () => void;
+  /** Edit a user message in place and re-run the conversation from there. */
+  editAndResend: (messageId: string, newContent: string) => void;
 
   /* settings (persisted) */
   theme: ThemePreference;
@@ -183,16 +204,125 @@ const cancelInflight = () => {
   roundTripTimer = null;
 };
 
-/** Overwrite the streamed bubble's content, immutably. */
-const patchMessageContent = (chatId: string, messageId: string, content: string) =>
+/** Immutably patch the streaming assistant bubble with a transform. */
+const patchAssistant = (chatId: string, messageId: string, fn: (m: ChatMessage) => ChatMessage) =>
   useChatStore.setState((s) => ({
     messagesByChatId: {
       ...s.messagesByChatId,
-      [chatId]: s.messagesByChatId[chatId]?.map((m) =>
-        m.id === messageId ? { ...m, content } : m,
-      ) ?? [],
+      [chatId]: (s.messagesByChatId[chatId] ?? []).map((m) => (m.id === messageId ? fn(m) : m)),
     },
   }));
+
+interface StreamEvent {
+  type: string;
+  content?: string;
+  stage?: ChatMessage['status'];
+  detail?: string;
+  sources?: { index: number; title: string; url: string; snippet?: string }[];
+  url?: string;
+  message?: string;
+}
+
+/**
+ * Shared SSE consumer for send / regenerate / edit. Handles the full event
+ * vocabulary: staged status (searching→reading→synthesizing→thinking),
+ * grounded sources, streamed chunks, and image results.
+ */
+function runStream(chatId: string, assistantId: string, body: Record<string, unknown>): void {
+  const controller = new AbortController();
+  aiController = controller;
+
+  const request = (token: string | null) =>
+    fetch(`${apiBaseUrl}/api/ai/stream`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+  void (async () => {
+    try {
+      let token = typeof window !== 'undefined' ? localStorage.getItem('krittim-access-token') : null;
+      let response = await request(token);
+      if (response.status === 401) {
+        token = await refreshAccessToken();
+        if (token) response = await request(token);
+      }
+      if (!response.ok || !response.body) {
+        const raw = await response.text().catch(() => '');
+        let message = `AI request failed (${response.status})`;
+        try {
+          const json = JSON.parse(raw) as { error?: string | { formErrors?: string[] } };
+          if (typeof json.error === 'string') message = json.error;
+          else if (json.error?.formErrors?.[0]) message = json.error.formErrors[0];
+        } catch {
+          if (raw) message = raw.slice(0, 200);
+        }
+        if (response.status === 401) { expireSession(); throw new Error('SESSION_EXPIRED'); }
+        throw new Error(message);
+      }
+
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() ?? '';
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6);
+          if (data === '[DONE]') continue;
+          let event: StreamEvent;
+          try { event = JSON.parse(data); } catch { continue; }
+
+          if (event.type === 'chunk' && event.content) {
+            patchAssistant(chatId, assistantId, (m) => ({ ...m, content: m.content + event.content, status: undefined, statusDetail: undefined }));
+          } else if (event.type === 'status') {
+            patchAssistant(chatId, assistantId, (m) => ({ ...m, status: event.stage, statusDetail: event.detail }));
+          } else if (event.type === 'sources') {
+            patchAssistant(chatId, assistantId, (m) => ({ ...m, sources: event.sources }));
+          } else if (event.type === 'image' && event.url) {
+            patchAssistant(chatId, assistantId, (m) => ({ ...m, content: `![generated image](${event.url})`, status: undefined, statusDetail: undefined }));
+          } else if (event.type === 'error') {
+            throw new Error(event.message ?? 'AI provider failed');
+          }
+        }
+      }
+      useChatStore.setState({ isStreaming: false, stopRequested: false });
+    } catch (error) {
+      if ((error as Error).name !== 'AbortError') {
+        useChatStore.setState((state) => ({
+          messagesByChatId: {
+            ...state.messagesByChatId,
+            [chatId]: (state.messagesByChatId[chatId] ?? []).filter(
+              (item) => !(item.role === 'assistant' && item.id === assistantId && item.content === ''),
+            ),
+          },
+        }));
+        const message = error instanceof Error ? error.message : 'AI request failed';
+        if (message === 'SESSION_EXPIRED') {
+          useChatStore.setState({ isStreaming: false, stopRequested: false });
+          return;
+        }
+        toast.error(
+          message.includes('Failed to fetch')
+            ? `Cannot reach the AI server at ${apiBaseUrl || 'the current site'}`
+            : message,
+        );
+      }
+      useChatStore.setState({ isStreaming: false, stopRequested: false });
+    } finally {
+      aiController = null;
+    }
+  })();
+}
 
 export const useChatStore = create<ChatState>()(
   persist(
@@ -219,6 +349,16 @@ export const useChatStore = create<ChatState>()(
     setModel: (model) => set({ model }),
     reasoningMode: 'auto',
     setReasoningMode: (reasoningMode) => set({ reasoningMode }),
+
+    /* ------------------------- tools + personalization ------------------ */
+    webSearch: false,
+    setWebSearch: (webSearch) => set((s) => ({ webSearch, imageMode: webSearch ? false : s.imageMode })),
+    imageMode: false,
+    setImageMode: (imageMode) => set((s) => ({ imageMode, webSearch: imageMode ? false : s.webSearch })),
+    customInstructions: '',
+    setCustomInstructions: (customInstructions) => set({ customInstructions }),
+    responseStyle: 'balanced',
+    setResponseStyle: (responseStyle) => set({ responseStyle }),
 
     /* ---------------------------- history ------------------------------- */
     projects: [],
@@ -342,6 +482,37 @@ export const useChatStore = create<ChatState>()(
       });
     },
 
+    /* ----------------------------- projects ----------------------------- */
+
+    createProject: (name, emoji = '📁', color = 'from-brand to-brand-soft') => {
+      const id = uid('proj');
+      const now = Date.now();
+      const project: Project = { id, name: name.trim() || 'New Project', emoji, color, createdAt: now, updatedAt: now };
+      set((s) => ({ projects: [...s.projects, project], projectsCollapsed: false }));
+      toast.success('Project created', { description: `“${project.name}” is ready.` });
+      return id;
+    },
+
+    renameProject: (id, name) => {
+      const trimmed = name.trim();
+      if (!trimmed) return;
+      set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, name: trimmed, updatedAt: Date.now() } : p)) }));
+    },
+
+    deleteProject: (id) => {
+      const project = get().projects.find((p) => p.id === id);
+      set((s) => ({
+        projects: s.projects.filter((p) => p.id !== id),
+        // Unassign chats rather than deleting them.
+        chats: s.chats.map((c) => (c.projectId === id ? { ...c, projectId: null } : c)),
+      }));
+      toast.success('Project deleted', { description: project ? `“${project.name}” removed — its chats were kept.` : undefined });
+    },
+
+    assignChatToProject: (chatId, projectId) => {
+      set((s) => ({ chats: s.chats.map((c) => (c.id === chatId ? { ...c, projectId } : c)) }));
+    },
+
     addMessage: (chatId, message) => {
       const full: ChatMessage = {
         id: message.id ?? uid('msg'),
@@ -373,7 +544,7 @@ export const useChatStore = create<ChatState>()(
      * real SSE feed will have, so consumers need no changes when the backend lands.
      */
     sendMessage: (content, attachments, options) => {
-      const { isStreaming, model, reasoningMode } = get();
+      const { isStreaming, model, reasoningMode, webSearch, imageMode, customInstructions, responseStyle } = get();
       const trimmed = content.trim();
       if (!trimmed || isStreaming) return;
 
@@ -383,13 +554,13 @@ export const useChatStore = create<ChatState>()(
         chatId = get().createChat(null);
       }
 
-      cancelInflight();
       const chat = get().chats.find((item) => item.id === chatId);
       if (!chat) {
         toast.error('Unable to start chat');
         return;
       }
 
+      const useSearch = options?.webSearch ?? webSearch;
       const userMessage: ChatMessage = {
         id: uid('msg'),
         role: 'user',
@@ -420,91 +591,31 @@ export const useChatStore = create<ChatState>()(
       }
 
       const assistantId = uid('msg');
-      get().addMessage(chatId, { id: assistantId, role: 'assistant', content: '', model, mode: reasoningMode });
-      const controller = new AbortController();
-      roundTripTimer = setTimeout(() => undefined, 0);
-      void (async () => {
-        try {
-          const request = (token: string | null) => fetch(`${apiBaseUrl}/api/ai/stream`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token
-                ? { Authorization: `Bearer ${token}` }
-                : {}),
-            },
-            body: JSON.stringify({ slug: chat.slug, modelId: model, reasoningMode, message: trimmed, hasImage: attachments?.some((file) => file.type.startsWith('image/')) ?? false, webSearch: options?.webSearch ?? false }),
-            signal: controller.signal,
-          });
-          let token = typeof window !== 'undefined' ? localStorage.getItem('krittim-access-token') : null;
-          let response = await request(token);
-          if (response.status === 401) {
-            token = await refreshAccessToken();
-            if (token) response = await request(token);
-          }
-          if (!response.ok || !response.body) {
-            const body = await response.text().catch(() => '');
-            if (response.status === 401) {
-              expireSession();
-              throw new Error('SESSION_EXPIRED');
-            }
-            throw new Error(`AI request failed (${response.status}): ${body || 'empty response'}`);
-          }
-          const reader = response.body.getReader();
-          const decoder = new TextDecoder();
-          let buffer = '';
-          while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop() ?? '';
-            for (const line of lines) {
-              if (!line.startsWith('data: ')) continue;
-              const data = line.slice(6);
-              if (data === '[DONE]') continue;
-              const event = JSON.parse(data) as { type: string; content?: string; sources?: { title: string; url: string }[]; message?: string };
-              if (event.type === 'chunk' && event.content) {
-                const current = useChatStore.getState().messagesByChatId[chatId]?.find((item) => item.id === assistantId)?.content ?? '';
-                patchMessageContent(chatId, assistantId, current + event.content);
-              } else if (event.type === 'sources') {
-                useChatStore.setState((state) => ({ messagesByChatId: { ...state.messagesByChatId, [chatId]: state.messagesByChatId[chatId].map((item) => item.id === assistantId ? { ...item, sources: event.sources } : item) } }));
-              } else if (event.type === 'status') {
-                useChatStore.setState((state) => ({ messagesByChatId: { ...state.messagesByChatId, [chatId]: state.messagesByChatId[chatId].map((item) => item.id === assistantId ? { ...item, status: event.content as 'searching' | 'thinking' } : item) } }));
-              } else if (event.type === 'error') throw new Error(event.message ?? 'AI provider failed');
-            }
-          }
-          useChatStore.setState({ isStreaming: false, stopRequested: false });
-        } catch (error) {
-          if ((error as Error).name !== 'AbortError') {
-            useChatStore.setState((state) => ({
-              messagesByChatId: {
-                ...state.messagesByChatId,
-                [chatId]: (state.messagesByChatId[chatId] ?? []).filter(
-                  (item) => !(item.role === 'assistant' && item.id === assistantId && item.content === ''),
-                ),
-              },
-            }));
-            const message = error instanceof Error ? error.message : 'AI request failed';
-            if (message === 'SESSION_EXPIRED') {
-              useChatStore.setState({ isStreaming: false, stopRequested: false });
-              return;
-            }
-            toast.error(
-              message.includes('Failed to fetch')
-                ? `Cannot reach the AI server at ${apiBaseUrl || 'the current site'}`
-                : message,
-            );
-          }
-          useChatStore.setState({ isStreaming: false, stopRequested: false });
-        }
-      })();
-      aiController = controller;
+      get().addMessage(chatId, {
+        id: assistantId,
+        role: 'assistant',
+        content: '',
+        model,
+        mode: reasoningMode,
+        status: imageMode ? 'generating' : useSearch ? 'searching' : 'thinking',
+      });
+
+      runStream(chatId, assistantId, {
+        slug: chat.slug,
+        modelId: model,
+        reasoningMode,
+        message: trimmed,
+        hasImage: attachments?.some((file) => file.type.startsWith('image/')) ?? false,
+        webSearch: useSearch,
+        mode: imageMode ? 'image' : 'chat',
+        customInstructions: customInstructions || undefined,
+        responseStyle,
+        attachments: attachments?.map((a) => ({ name: a.name, size: a.size, type: a.type })),
+      });
     },
 
     stopStreaming: () => {
       if (!get().isStreaming) return;
-      // Flag + hard-cancel: whichever timer is mid-flight stops appending.
       set({ stopRequested: true });
       cancelInflight();
       aiController?.abort();
@@ -512,7 +623,6 @@ export const useChatStore = create<ChatState>()(
       set((s) => ({
         isStreaming: false,
         stopRequested: false,
-        // Drop empty pre-token bubbles; keep any partially-typed answer.
         messagesByChatId: Object.fromEntries(
           Object.entries(s.messagesByChatId).map(([id, msgs]) => [
             id,
@@ -520,6 +630,82 @@ export const useChatStore = create<ChatState>()(
           ]),
         ),
       }));
+    },
+
+    regenerate: () => {
+      const { activeChatId, messagesByChatId, isStreaming, model, reasoningMode, webSearch, imageMode, customInstructions, responseStyle } = get();
+      if (!activeChatId || isStreaming) return;
+      const msgs = messagesByChatId[activeChatId] ?? [];
+      let lastUserIndex = -1;
+      for (let i = msgs.length - 1; i >= 0; i--) {
+        if (msgs[i].role === 'user') { lastUserIndex = i; break; }
+      }
+      if (lastUserIndex === -1) return;
+      const lastUser = msgs[lastUserIndex];
+      const chat = get().chats.find((c) => c.id === activeChatId);
+      if (!chat) return;
+
+      // Drop the trailing assistant reply (everything after the last user turn).
+      set((s) => ({
+        messagesByChatId: { ...s.messagesByChatId, [activeChatId]: msgs.slice(0, lastUserIndex + 1) },
+        isStreaming: true,
+        stopRequested: false,
+      }));
+
+      const assistantId = uid('msg');
+      get().addMessage(activeChatId, { id: assistantId, role: 'assistant', content: '', model, mode: reasoningMode, status: 'thinking' });
+
+      runStream(activeChatId, assistantId, {
+        slug: chat.slug,
+        modelId: model,
+        reasoningMode,
+        message: lastUser.content,
+        hasImage: lastUser.attachments?.some((f) => f.type.startsWith('image/')) ?? false,
+        webSearch,
+        mode: imageMode ? 'image' : 'chat',
+        regenerate: true,
+        customInstructions: customInstructions || undefined,
+        responseStyle,
+        attachments: lastUser.attachments?.map((a) => ({ name: a.name, size: a.size, type: a.type })),
+      });
+    },
+
+    editAndResend: (messageId, newContent) => {
+      const { activeChatId, messagesByChatId, isStreaming, model, reasoningMode, webSearch, imageMode, customInstructions, responseStyle } = get();
+      if (!activeChatId || isStreaming) return;
+      const trimmed = newContent.trim();
+      if (!trimmed) return;
+      const msgs = messagesByChatId[activeChatId] ?? [];
+      const index = msgs.findIndex((m) => m.id === messageId);
+      if (index === -1 || msgs[index].role !== 'user') return;
+      const chat = get().chats.find((c) => c.id === activeChatId);
+      if (!chat) return;
+
+      // Rewrite the user turn and discard everything after it.
+      const edited: ChatMessage = { ...msgs[index], content: trimmed };
+      const kept = [...msgs.slice(0, index), edited];
+      set((s) => ({
+        messagesByChatId: { ...s.messagesByChatId, [activeChatId]: kept },
+        isStreaming: true,
+        stopRequested: false,
+      }));
+
+      const assistantId = uid('msg');
+      get().addMessage(activeChatId, { id: assistantId, role: 'assistant', content: '', model, mode: reasoningMode, status: 'thinking' });
+
+      runStream(activeChatId, assistantId, {
+        slug: chat.slug,
+        modelId: model,
+        reasoningMode,
+        message: trimmed,
+        hasImage: edited.attachments?.some((f) => f.type.startsWith('image/')) ?? false,
+        webSearch,
+        mode: imageMode ? 'image' : 'chat',
+        regenerate: true,
+        customInstructions: customInstructions || undefined,
+        responseStyle,
+        attachments: edited.attachments?.map((a) => ({ name: a.name, size: a.size, type: a.type })),
+      });
     },
 
     /* ---------------------------- settings ------------------------------ */

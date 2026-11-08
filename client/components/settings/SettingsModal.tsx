@@ -30,7 +30,7 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import type { ThemePreference } from '@/lib/types';
+import { RESPONSE_STYLE_OPTIONS, type ResponseStyle, type ThemePreference } from '@/lib/types';
 import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
 
@@ -126,6 +126,10 @@ export function SettingsModal() {
   const setEnterToSend = useChatStore((s) => s.setEnterToSend);
   const showTimestamps = useChatStore((s) => s.showTimestamps);
   const setShowTimestamps = useChatStore((s) => s.setShowTimestamps);
+  const customInstructions = useChatStore((s) => s.customInstructions);
+  const setCustomInstructions = useChatStore((s) => s.setCustomInstructions);
+  const responseStyle = useChatStore((s) => s.responseStyle);
+  const setResponseStyle = useChatStore((s) => s.setResponseStyle);
   const clearAllChats = useChatStore((s) => s.clearAllChats);
   const resetAllData = useChatStore((s) => s.resetAllData);
 
@@ -167,6 +171,7 @@ export function SettingsModal() {
             <TabsList className="w-full rounded-xl border border-hairline bg-surface-soft p-1">
               <TabsTrigger value="appearance" className="rounded-lg text-xs">Appearance</TabsTrigger>
               <TabsTrigger value="chat" className="rounded-lg text-xs">Chat</TabsTrigger>
+              <TabsTrigger value="personalize" className="rounded-lg text-xs">Personalize</TabsTrigger>
               <TabsTrigger value="account" className="rounded-lg text-xs">Account</TabsTrigger>
               <TabsTrigger value="danger" className="rounded-lg text-xs text-red-400/80">Data</TabsTrigger>
             </TabsList>
@@ -213,6 +218,61 @@ export function SettingsModal() {
                   <SettingRow icon={Keyboard} title="Enter to send" description="Enter sends, Shift+Enter adds a new line.">
                     <Switch checked={enterToSend} onCheckedChange={(v) => flip(v === true, setEnterToSend, 'Enter to send')} aria-label="Enter to send" />
                   </SettingRow>
+                </SectionCard>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="personalize">
+              <div className="flex flex-col gap-4">
+                <SectionCard>
+                  <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-lg border border-hairline bg-surface-soft text-brand">
+                        <UserRound className="size-4" strokeWidth={1.9} />
+                      </span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-foreground">Custom instructions</p>
+                        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                          Standing directions Krittim follows in every chat — your role, tone, or rules.
+                        </p>
+                      </div>
+                    </div>
+                    <textarea
+                      value={customInstructions}
+                      onChange={(e) => setCustomInstructions(e.target.value)}
+                      maxLength={4000}
+                      rows={4}
+                      placeholder="e.g. I'm a backend engineer. Answer with TypeScript, be concise, and always mention trade-offs."
+                      className="w-full resize-y rounded-xl border border-hairline bg-surface px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+                    />
+                    <p className="text-right font-mono text-[10px] text-muted-foreground/60">{customInstructions.length}/4000</p>
+                  </div>
+                </SectionCard>
+
+                <SectionCard>
+                  <div className="flex flex-col gap-2.5">
+                    <p className="text-sm font-medium text-foreground">Response length</p>
+                    <div className="grid grid-cols-3 gap-2">
+                      {RESPONSE_STYLE_OPTIONS.map((option) => {
+                        const active = responseStyle === option.id;
+                        return (
+                          <button
+                            key={option.id}
+                            type="button"
+                            onClick={() => { setResponseStyle(option.id as ResponseStyle); toast.success(`${option.name} responses`, { duration: 1200 }); }}
+                            aria-pressed={active}
+                            className={cn(
+                              'flex flex-col items-center gap-0.5 rounded-xl border px-2 py-3 text-xs font-medium outline-none transition-colors active:scale-[0.97]',
+                              active ? 'border-brand/50 bg-brand/10 text-foreground' : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:text-foreground',
+                            )}
+                          >
+                            <span>{option.name}</span>
+                            <span className="text-[10px] font-normal text-muted-foreground/70">{option.tagline}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </SectionCard>
               </div>
             </TabsContent>
