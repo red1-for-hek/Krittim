@@ -42,8 +42,6 @@ const generateSlug = (): string => {
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 
-/* ------------------------------- mock seed -------------------------------- */
-
 /* ------------------------------ time buckets ------------------------------ */
 
 export function bucketFor(timestamp: number, now: number): string {
@@ -52,81 +50,6 @@ export function bucketFor(timestamp: number, now: number): string {
   if (now - timestamp < 7 * DAY) return 'Previous 7 days';
   if (now - timestamp < 30 * DAY) return 'Previous 30 days';
   return 'Older';
-}
-
-/* ----------------------------- mock replies ------------------------------- */
-
-const CODE_REPLY = [
-  'Happy to dig in. Here is the pattern I would reach for — a typed hook with proper effect cleanup:',
-  '',
-  '```tsx',
-  "import { useEffect, useRef, useState } from 'react';",
-  '',
-  'export function useDebouncedValue<T>(value: T, delay = 300): T {',
-  '  const [debounced, setDebounced] = useState(value);',
-  '  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);',
-  '',
-  '  useEffect(() => {',
-  '    timer.current = setTimeout(() => setDebounced(value), delay);',
-  '    return () => clearTimeout(timer.current); // no stale closures',
-  '  }, [value, delay]);',
-  '',
-  '  return debounced;',
-  '}',
-  '```',
-  '',
-  'Three things this gets right:',
-  '',
-  '1. **Cleanup on every keystroke** — the old timer is cancelled before a new one starts.',
-  '2. **Generic over `T`** — works for strings, ids, or whole filter objects.',
-  '3. **No state duplication** — the debounced value is derived, never synced by hand.',
-  '',
-  'Paste your failing snippet and I will review it line by line.',
-].join('\n');
-
-const RAG_REPLY = [
-  'Great question. Here is the short version of **Retrieval-Augmented Generation**:',
-  '',
-  '| Stage | What happens | Why it matters |',
-  '| --- | --- | --- |',
-  '| 1. Ingest | Documents are chunked & embedded into vectors | Semantics survive in geometry |',
-  '| 2. Retrieve | The query embeds, nearest chunks are fetched | Grounds the model in *your* data |',
-  '| 3. Generate | Chunks are injected into the prompt as context | Answers cite reality, not memory |',
-  '',
-  'The trade-off is latency vs. faithfulness: retrieval adds ~50–200ms but slashes hallucination rates dramatically. Teams usually tune it with hybrid search — BM25 for exact terms, dense vectors for meaning, fused with reciprocal rank fusion.',
-  '',
-  'Want me to sketch a minimal RAG pipeline in TypeScript?',
-].join('\n');
-
-const GREETING_REPLY = [
-  "Hey Dev — good to see you. I'm **Krittim**, your reasoning partner.",
-  '',
-  "Here's what I can do right now:",
-  '',
-  '- Write and review production code',
-  '- Explain systems end-to-end (*RAG*, *vector search*, *KV caches*)',
-  '- Draft launch copy, plans and specs',
-  '',
-  "Drop a file or paste a snippet whenever you're ready.",
-].join('\n');
-
-const DEFAULT_REPLY = [
-  "Understood — here's how I'd structure that:",
-  '',
-  '1. **Clarify the goal** — one sentence, verifiable outcome.',
-  '2. **Map the constraints** — time, budget, technical edges.',
-  '3. **Draft the smallest step** that produces a measurable result.',
-  '',
-  'Give me a little more context and I will tailor the plan — or switch me to **Thinking** mode above if this deserves deeper reasoning.',
-].join('\n');
-
-/** Deterministic mock reply generator — swap for a real API in pass 4. */
-function mockReply(prompt: string): string {
-  const t = prompt.trim();
-  if (/^hi\b|^hello\b|^hey\b/i.test(t)) return GREETING_REPLY;
-  if (/code|function|bug|typescript|react|hook|component|race|refactor/i.test(t)) return CODE_REPLY;
-  if (/explain|what is|how does|rag|retrieval|vector|transformer|llm|benchmark/i.test(t)) return RAG_REPLY;
-  return DEFAULT_REPLY;
 }
 
 /* ------------------------------ theme side-effect -------------------------- */
@@ -250,17 +173,14 @@ export interface ChatState {
   setShowTimestamps: (on: boolean) => void;
 }
 
-/* Module-level handles so an in-flight simulated stream can be interrupted without living inside React. */
+/* Module-level handle so an in-flight SSE stream can be interrupted without living inside React. */
 let roundTripTimer: ReturnType<typeof setTimeout> | null = null;
-let streamInterval: ReturnType<typeof setInterval> | null = null;
 let aiController: AbortController | null = null;
 const apiBaseUrl = getApiBaseUrl();
 
 const cancelInflight = () => {
   if (roundTripTimer) clearTimeout(roundTripTimer);
-  if (streamInterval) clearInterval(streamInterval);
   roundTripTimer = null;
-  streamInterval = null;
 };
 
 /** Overwrite the streamed bubble's content, immutably. */
@@ -277,31 +197,6 @@ const patchMessageContent = (chatId: string, messageId: string, content: string)
 export const useChatStore = create<ChatState>()(
   persist(
     (set, get) => {
-  /** Char-by-char ticker that appends to the assistant bubble until complete or stopped. */
-  function startCharStream(chatId: string, messageId: string, fullText: string) {
-    let cursor = 0;
-    streamInterval = setInterval(() => {
-      const state = useChatStore.getState();
-
-      // Cooperative cancellation — Stop flips the flag; switching chats aborts too.
-      if (state.stopRequested || state.activeChatId !== chatId) {
-        cancelInflight();
-        useChatStore.setState({ isStreaming: false, stopRequested: false });
-        return;
-      }
-
-      // Variable cadence (2–4 chars/tick) reads like a real SSE feed.
-      const step = Math.min(fullText.length - cursor, 2 + Math.floor(Math.random() * 3));
-      cursor += step;
-      patchMessageContent(chatId, messageId, fullText.slice(0, cursor));
-
-      if (cursor >= fullText.length) {
-        cancelInflight();
-        useChatStore.setState({ isStreaming: false, stopRequested: false });
-      }
-    }, 18);
-  }
-
   return {
     /* ------------------------------ chrome ------------------------------ */
     sidebarOpen: true,

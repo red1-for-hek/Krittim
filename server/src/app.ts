@@ -4,6 +4,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
 import authRouter from './routes/auth.js';
+import oauthRouter from './routes/oauth.js';
 import chatsRouter from './routes/chats.js';
 import aiRouter from './routes/ai.js';
 import settingsRouter from './routes/settings.js';

@@ -58,33 +58,9 @@ router.post('/login', async (req: Request, res: Response): Promise<void> => {
 });
 
 // ── OAuth (Google / GitHub / Discord) ────────────────────────────────────────
-// Client completes OAuth flow, sends us the profile data + provider token.
-// We upsert the user and return our own JWT pair.
-
-const oauthSchema = z.object({
-  provider: z.enum(['google', 'github', 'discord']),
-  providerId: z.string().min(1),
-  name: z.string().min(1).max(80),
-  email: z.string().email(),
-  avatarUrl: z.string().url().optional(),
-});
-
-router.post('/oauth', async (req: Request, res: Response): Promise<void> => {
-  const parsed = oauthSchema.safeParse(req.body);
-  if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
-  const { provider, providerId, name, email, avatarUrl } = parsed.data;
-
-  let user = await User.findOne({ provider, providerId });
-  if (!user) {
-    user = await User.findOne({ email }) ?? await User.create({ name, email, avatarUrl, provider, providerId });
-    if (user.provider !== provider) { user.provider = provider; user.providerId = providerId; await user.save(); }
-  }
-  if (avatarUrl && user.avatarUrl !== avatarUrl) { user.avatarUrl = avatarUrl; await user.save(); }
-
-  const tokens = issueTokens(user._id.toString(), user.email);
-  await User.findByIdAndUpdate(user._id, { refreshToken: tokens.refreshToken });
-  res.json({ user: { id: user._id, name: user.name, email: user.email, plan: user.plan, avatarUrl: user.avatarUrl }, ...tokens });
-});
+// Social login now runs through the secure Authorization Code flow in
+// ./oauth.ts (server holds the secrets, browser only redirects). The old
+// client-trusted POST /oauth was removed because anyone could forge a profile.
 
 // ── Refresh ───────────────────────────────────────────────────────────────────
 

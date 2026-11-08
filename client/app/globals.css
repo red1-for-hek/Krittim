@@ -19,6 +19,13 @@
   --hairline: oklch(0.24 0.012 155 / 9%);
 }
 
+/* Self-hosted font families (see layout.tsx @fontsource imports). */
+:root {
+  --font-dm-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-playfair: "Playfair Display", ui-serif, Georgia, serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
+}
+
 @theme inline {
   --color-surface: var(--surface);
   --color-surface-soft: var(--surface-soft);

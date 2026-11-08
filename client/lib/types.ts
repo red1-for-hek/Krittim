@@ -112,6 +112,8 @@ export interface UserProfile {
   handle: string;
   plan: string;
   initials: string;
+  avatarUrl?: string;
+  provider?: "google" | "github" | "discord" | "email";
 }
 
 export type MockUser = UserProfile;

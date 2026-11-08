@@ -1,26 +1,14 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Playfair_Display, Geist_Mono } from "next/font/google";
+import "@fontsource/dm-sans/400.css";
+import "@fontsource/dm-sans/500.css";
+import "@fontsource/dm-sans/600.css";
+import "@fontsource/dm-sans/700.css";
+import "@fontsource/playfair-display/400.css";
+import "@fontsource/playfair-display/400-italic.css";
+import "@fontsource/playfair-display/500.css";
+import "@fontsource/playfair-display/600.css";
+import "@fontsource-variable/geist-mono";
 import "./globals.css";
-
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-playfair",
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-  display: "swap",
-});
 
 export const metadata: Metadata = {
   title: "Krittim AI — Reasoning, refined.",
@@ -48,8 +36,9 @@ const THEME_BOOTSTRAP = `(function(){try{var d=document.documentElement;var t=lo
 
 /**
  * RootLayout — Server Component
- * Owns fonts, metadata, the anti-flash theme script and the html/body shell only.
- * All interactivity lives below in client components.
+ * Owns metadata, the anti-flash theme script and the html/body shell only.
+ * Fonts are self-hosted via @fontsource (imported above) so builds never depend
+ * on an external Google Fonts fetch — faster, private, and offline-safe.
  */
 export default function RootLayout({
   children,
@@ -64,7 +53,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${dmSans.variable} ${playfair.variable} ${geistMono.variable} min-h-dvh bg-background font-sans text-foreground antialiased`}
+        className="min-h-dvh bg-background font-sans text-foreground antialiased"
       >
         {children}
       </body>

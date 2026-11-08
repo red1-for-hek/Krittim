@@ -1,9 +1,19 @@
 'use client';
 
 import { memo } from 'react';
+import { ArrowRight, Braces, Rocket, ShieldCheck, Waypoints } from 'lucide-react';
+
+import { useChatStore } from '@/store/chatStore';
 
 const WORDS = ['Welcome', 'to'];
 const DELAYS = ['0ms', '90ms', '190ms'];
+
+const STARTERS = [
+  { icon: Waypoints, label: 'Explain RAG like I ship it today' },
+  { icon: Braces, label: 'Review this hook for race conditions' },
+  { icon: ShieldCheck, label: 'Design a rate limiter for a free-tier API' },
+  { icon: Rocket, label: 'Draft a launch plan for Krittim AI' },
+] as const;
 
 /**
  * WelcomeScreen — CSS word-reveal hero. One static glow on desktop,
@@ -67,6 +77,34 @@ export function WelcomeScreen() {
       >
         Refined intelligence for complex reasoning, system architectures, and engineering execution.
       </p>
+
+      <StarterPrompts />
+    </div>
+  );
+}
+
+function StarterPrompts() {
+  const sendMessage = useChatStore((s) => s.sendMessage);
+  const isStreaming = useChatStore((s) => s.isStreaming);
+
+  return (
+    <div
+      className="anim-fade-up mt-6 grid w-full max-w-xl grid-cols-1 gap-2 sm:grid-cols-2"
+      style={{ '--d': '440ms' } as React.CSSProperties}
+    >
+      {STARTERS.map(({ icon: Icon, label }) => (
+        <button
+          key={label}
+          type="button"
+          disabled={isStreaming}
+          onClick={() => sendMessage(label)}
+          className="group/starter flex items-center gap-2.5 rounded-xl border border-hairline bg-surface/60 px-3 py-2.5 text-left text-[13px] text-muted-foreground outline-none transition-all duration-200 hover:border-brand/35 hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/40 active:scale-[0.98] disabled:pointer-events-none disabled:opacity-50"
+        >
+          <Icon className="size-4 shrink-0 text-brand/80 transition-colors group-hover/starter:text-brand" strokeWidth={1.8} />
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          <ArrowRight className="size-3.5 shrink-0 -translate-x-1 opacity-0 transition-all duration-200 group-hover/starter:translate-x-0 group-hover/starter:opacity-70" strokeWidth={2} />
+        </button>
+      ))}
     </div>
   );
 }

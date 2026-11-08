@@ -6,6 +6,8 @@ const nextConfig: NextConfig = {
   /* config options here */
   cacheComponents: true,
   partialPrefetching: true,
+  // Allow the Arena preview proxy (and Vercel) to load dev assets cross-origin.
+  allowedDevOrigins: ["*.e2b.app", "*.vercel.app"],
   async rewrites() {
     return [
       {

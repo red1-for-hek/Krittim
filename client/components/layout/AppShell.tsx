@@ -10,11 +10,13 @@ import AnimatedMeshBackground from '@/components/layout/AnimatedMeshBackground';
 import { TopBar } from '@/components/layout/TopBar';
 import { CommandPalette } from '@/components/command/CommandPalette';
 import { SettingsModal } from '@/components/settings/SettingsModal';
+import { AuthModal } from '@/components/auth/AuthModal';
 import { MobileSidebar, Sidebar } from '@/components/ui/Sidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/useIsMobile';
 import { applyThemeEffect, selectActiveMessages, useChatStore } from '@/store/chatStore';
+import { useAuthStore } from '@/store/authStore';
 
 export function AppShell() {
   const isMobile = useIsMobile();
@@ -29,7 +31,12 @@ export function AppShell() {
   const messages = useChatStore(selectActiveMessages);
   const hasThread = activeChatId !== null && messages.length > 0;
 
+  const hydrateSession = useAuthStore((s) => s.hydrateSession);
+
   useEffect(() => applyThemeEffect(), []);
+  useEffect(() => {
+    void hydrateSession();
+  }, [hydrateSession]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
