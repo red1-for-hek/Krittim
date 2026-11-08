@@ -8,6 +8,7 @@ export interface IMessage extends Document {
   modelId?: string;
   reasoningMode?: string;
   attachments: { name: string; size: number; type: string; url?: string }[];
+  sources?: { index: number; title: string; url: string; snippet?: string }[];
   createdAt: Date;
 }
 
@@ -19,6 +20,7 @@ const MessageSchema = new Schema<IMessage>(
     modelId: String,
     reasoningMode: String,
     attachments: [{ name: String, size: Number, type: String, url: String }],
+    sources: [{ index: Number, title: String, url: String, snippet: String }],
   },
   { timestamps: { createdAt: true, updatedAt: false } },
 );

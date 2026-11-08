@@ -11,6 +11,9 @@ export interface AttachmentMeta {
   type: string;
 }
 
+/** Live stages streamed from the server while an answer is being produced. */
+export type SearchStage = "searching" | "reading" | "synthesizing" | "thinking" | "generating";
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -23,8 +26,14 @@ export interface ChatMessage {
   pending?: boolean;
   /** Files attached to this turn. */
   attachments?: AttachmentMeta[];
-  sources?: { title: string; url: string }[];
-  status?: "searching" | "thinking";
+  /** Grounded web citations shown under the answer. */
+  sources?: { index: number; title: string; url: string; snippet?: string }[];
+  /** Live pipeline stage while streaming (drives the shimmer status). */
+  status?: SearchStage;
+  /** Human-readable detail for the current stage, e.g. "Reading 3 sources". */
+  statusDetail?: string;
+  /** Thumbs feedback for this answer. */
+  feedback?: "up" | "down" | null;
 }
 
 /* -------------------------------- Chats ----------------------------------- */
@@ -43,13 +52,23 @@ export interface Project {
   id: string;
   name: string;
   emoji: string;
-  color: string; // tailwind gradient stops, e.g. 'from-violet-500 to-fuchsia-500'
+  color: string;
+  createdAt?: number;
+  updatedAt?: number;
 }
 
 /* --------------------------------- Models --------------------------------- */
 
 export type ModelId = "r1_xenon" | "s1_neon";
 export type ReasoningMode = "auto" | "fast" | "thinking";
+/** How long/detailed the assistant's answers should be (personalization). */
+export type ResponseStyle = "concise" | "balanced" | "thorough";
+
+export const RESPONSE_STYLE_OPTIONS: readonly { id: ResponseStyle; name: string; tagline: string }[] = [
+  { id: "concise", name: "Concise", tagline: "Short & direct" },
+  { id: "balanced", name: "Balanced", tagline: "Default" },
+  { id: "thorough", name: "Thorough", tagline: "Deep & complete" },
+] as const;
 
 export interface ModelOption {
   id: ModelId;
@@ -112,6 +131,8 @@ export interface UserProfile {
   handle: string;
   plan: string;
   initials: string;
+  avatarUrl?: string;
+  provider?: "google" | "github" | "discord" | "email";
 }
 
 export type MockUser = UserProfile;
@@ -143,6 +164,8 @@ export const PERSISTED_STATE_KEYS = [
   "streamResponses",
   "enterToSend",
   "showTimestamps",
+  "customInstructions",
+  "responseStyle",
 ] as const;
 
 /** localStorage entry holding the resolved + preferred theme (read by the inline script in layout). */

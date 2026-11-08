@@ -235,7 +235,6 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
           </Tooltip>
         )}
       </div>
-      <AuthModal />
     </aside>
   );
 }

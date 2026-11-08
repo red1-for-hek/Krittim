@@ -221,11 +221,20 @@ Krittim/
 
 ## What's Left To Do (in order)
 
-- [ ] Wire client `sendMessage` to `POST /api/ai/stream` (replace mock)
-- [ ] Wire client `createChat` to `POST /api/chats`
-- [ ] Wire client auth buttons to `POST /api/auth/oauth` (NextAuth or direct)
-- [ ] Sync chat list from server on login
-- [ ] Deploy: Vercel (client) + Railway/Render (server) + MongoDB Atlas
+- [x] Wire client `sendMessage` to `POST /api/ai/stream` (SSE streaming)
+- [x] Real OAuth login — Google / GitHub / Discord (secure Authorization Code flow) + Email
+- [x] Session hydration + JWT refresh on app start
+- [ ] Sync chat list from server on login (`GET /api/chats` merge)
+- [ ] Deploy: Vercel (client) + Render/Railway (server) + MongoDB Atlas
+
+### 🔐 Auth setup — read this first
+
+Login now uses a **real** OAuth flow (the old mock login was removed). You need
+to create OAuth apps and paste keys/secrets into the **server** environment.
+
+**Full step-by-step guide: [`docs/OAUTH_SETUP.md`](./docs/OAUTH_SETUP.md)** —
+exactly what to create (Google/GitHub/Discord/MongoDB/AI keys), the callback
+URLs to use, and which variable goes on the server vs. the client.
 
 ---
 

@@ -32,7 +32,9 @@ export function AuthModal() {
   const open = useAuthStore((s) => s.authModalOpen);
   const mode = useAuthStore((s) => s.authMode);
   const close = useAuthStore((s) => s.closeAuthModal);
-  const login = useAuthStore((s) => s.login);
+  const loginWithProvider = useAuthStore((s) => s.loginWithProvider);
+  const loginWithEmail = useAuthStore((s) => s.loginWithEmail);
+  const signupWithEmail = useAuthStore((s) => s.signupWithEmail);
   const isLoading = useAuthStore((s) => s.isLoading);
   const setMode = useAuthStore((s) => s.openAuthModal);
 
@@ -51,7 +53,10 @@ export function AuthModal() {
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    void login('email', email, password, mode === 'signup').catch((reason: unknown) => {
+    const action = mode === 'signup'
+      ? signupWithEmail(email.split('@')[0] || 'Krittim User', email, password)
+      : loginWithEmail(email, password);
+    void action.catch((reason: unknown) => {
       setError(reason instanceof Error ? reason.message : 'Authentication failed');
     });
   };
@@ -108,7 +113,7 @@ export function AuthModal() {
                 key={provider}
                 type="button"
                 disabled={isLoading}
-                onClick={() => login(provider)}
+                onClick={() => loginWithProvider(provider)}
                 className="flex h-10 w-full items-center justify-center gap-2.5 rounded-xl border border-hairline bg-surface px-3 text-sm font-medium text-foreground outline-none transition-all duration-200 hover:border-brand/40 hover:bg-surface-hover active:scale-[0.98] disabled:opacity-60"
               >
                 {isLoading ? <Loader2 className="size-4 animate-spin" /> : icon}

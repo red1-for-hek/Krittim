@@ -1,33 +1,51 @@
 import type { Metadata, Viewport } from "next";
-import { DM_Sans, Playfair_Display, Geist_Mono } from "next/font/google";
+import "@fontsource/dm-sans/400.css";
+import "@fontsource/dm-sans/500.css";
+import "@fontsource/dm-sans/600.css";
+import "@fontsource/dm-sans/700.css";
+import "@fontsource/playfair-display/400.css";
+import "@fontsource/playfair-display/400-italic.css";
+import "@fontsource/playfair-display/500.css";
+import "@fontsource/playfair-display/600.css";
+import "@fontsource/newsreader/400.css";
+import "@fontsource/newsreader/500.css";
+import "@fontsource/newsreader/400-italic.css";
+import "@fontsource/newsreader/500-italic.css";
+import "@fontsource-variable/geist-mono";
 import "./globals.css";
 
-const dmSans = DM_Sans({
-  subsets: ["latin"],
-  variable: "--font-dm-sans",
-  display: "swap",
-});
-
-const playfair = Playfair_Display({
-  subsets: ["latin"],
-  weight: ["400", "500", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-playfair",
-  display: "swap",
-});
-
-const geistMono = Geist_Mono({
-  subsets: ["latin"],
-  variable: "--font-geist-mono",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "Krittim AI — Reasoning, refined.",
+  metadataBase: new URL("https://krittim-client.vercel.app"),
+  title: {
+    default: "Krittim AI — Reasoning, refined.",
+    template: "%s · Krittim AI",
+  },
   description:
-    "Krittim AI is the premium conversational intelligence platform by BNMPC IT Club — fast answers, deep reasoning, and a beautifully crafted chat experience.",
-  keywords: ["Krittim AI", "AI chat", "BNMPC IT Club", "LLM", "assistant"],
+    "Krittim AI is the premium conversational intelligence platform by BNMPC IT Club — fast answers, deep reasoning, live web research, and a beautifully crafted chat experience.",
+  keywords: ["Krittim AI", "AI chat", "BNMPC IT Club", "LLM", "assistant", "reasoning", "web search AI"],
   authors: [{ name: "BNMPC IT Club" }],
+  creator: "BNMPC IT Club",
+  applicationName: "Krittim AI",
+  openGraph: {
+    type: "website",
+    siteName: "Krittim AI",
+    title: "Krittim AI — Reasoning, refined.",
+    description:
+      "Premium conversational intelligence by BNMPC IT Club — fast answers, deep reasoning, and grounded web research.",
+    url: "https://krittim-client.vercel.app",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Krittim AI — Reasoning, refined.",
+    description:
+      "Premium conversational intelligence by BNMPC IT Club — fast answers, deep reasoning, and grounded web research.",
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: { index: true, follow: true, "max-image-preview": "large" },
+  },
 };
 
 export const viewport: Viewport = {
@@ -48,8 +66,9 @@ const THEME_BOOTSTRAP = `(function(){try{var d=document.documentElement;var t=lo
 
 /**
  * RootLayout — Server Component
- * Owns fonts, metadata, the anti-flash theme script and the html/body shell only.
- * All interactivity lives below in client components.
+ * Owns metadata, the anti-flash theme script and the html/body shell only.
+ * Fonts are self-hosted via @fontsource (imported above) so builds never depend
+ * on an external Google Fonts fetch — faster, private, and offline-safe.
  */
 export default function RootLayout({
   children,
@@ -64,7 +83,7 @@ export default function RootLayout({
       </head>
       <body
         suppressHydrationWarning
-        className={`${dmSans.variable} ${playfair.variable} ${geistMono.variable} min-h-dvh bg-background font-sans text-foreground antialiased`}
+        className="min-h-dvh bg-background font-sans text-foreground antialiased"
       >
         {children}
       </body>

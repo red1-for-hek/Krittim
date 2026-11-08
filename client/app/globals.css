@@ -19,6 +19,14 @@
   --hairline: oklch(0.24 0.012 155 / 9%);
 }
 
+/* Self-hosted font families (see layout.tsx @fontsource imports). */
+:root {
+  --font-dm-sans: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-playfair: "Playfair Display", ui-serif, Georgia, serif;
+  --font-geist-mono: "Geist Mono Variable", ui-monospace, monospace;
+  --font-reading: "Newsreader", ui-serif, Georgia, serif;
+}
+
 @theme inline {
   --color-surface: var(--surface);
   --color-surface-soft: var(--surface-soft);
@@ -220,6 +228,36 @@
     animation: aurora-shift 5s ease-in-out infinite;
   }
 
+  /* Claude-style reading serif for assistant prose. */
+  .font-reading {
+    font-family: var(--font-reading), ui-serif, Georgia, serif;
+    font-optical-sizing: auto;
+  }
+
+  /* Shimmering status text — the "thinking / searching" shimmer. */
+  @keyframes k-shimmer-text {
+    0% { background-position: 200% 50%; }
+    100% { background-position: -200% 50%; }
+  }
+  .text-shimmer {
+    background: linear-gradient(90deg, oklch(0.6 0.01 155 / 90%) 0%, oklch(0.95 0.02 155) 45%, oklch(0.6 0.01 155 / 90%) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    animation: k-shimmer-text 2.4s linear infinite;
+  }
+
+  /* Soft breathing orb behind the live status pill. */
+  @keyframes k-orb {
+    0%, 100% { transform: scale(1); opacity: 0.55; }
+    50% { transform: scale(1.35); opacity: 1; }
+  }
+  .orb-dot {
+    animation: k-orb 1.6s ease-in-out infinite;
+    box-shadow: 0 0 12px 2px oklch(0.62 0.18 155 / 55%);
+  }
+
   .dot-matrix {
     background-image: radial-gradient(circle at 1px 1px, oklch(1 0 0 / 4%) 1px, transparent 0);
     background-size: 24px 24px;
@@ -371,7 +409,8 @@
   @media (prefers-reduced-motion: reduce) {
     .anim-fade-up, .anim-fade-in, .anim-scale-in, .anim-word, .msg-enter,
     .k-blob-a, .k-blob-b, .text-aurora, .text-krittim-gradient, .hero-sheen,
-    .thinking-dot, .stream-caret, .wave-bar, .pulse-dot, .skeleton-shimmer {
+    .thinking-dot, .stream-caret, .wave-bar, .pulse-dot, .skeleton-shimmer,
+    .text-shimmer, .orb-dot {
       animation: none !important;
     }
   }

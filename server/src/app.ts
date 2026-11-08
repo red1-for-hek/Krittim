@@ -4,7 +4,9 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 
 import authRouter from './routes/auth.js';
+import oauthRouter from './routes/oauth.js';
 import chatsRouter from './routes/chats.js';
+import projectsRouter from './routes/projects.js';
 import aiRouter from './routes/ai.js';
 import settingsRouter from './routes/settings.js';
 
@@ -44,7 +46,9 @@ const aiLimiter = rateLimit({
 
 app.use(express.json({ limit: '1mb' }));
 app.use('/api/auth', authRouter);
+app.use('/api/auth/oauth', oauthRouter);
 app.use('/api/chats', chatsRouter);
+app.use('/api/projects', projectsRouter);
 app.use('/api/ai', aiLimiter, aiRouter);
 app.use('/api/settings', settingsRouter);
 app.get('/', (_req, res) => res.json({ ok: true, service: 'krittim-server' }));

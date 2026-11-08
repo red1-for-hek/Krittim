@@ -39,6 +39,8 @@ const UserSchema = new Schema<IUser>(
       enterToSend: { type: Boolean, default: true },
       streamResponses: { type: Boolean, default: true },
       aiMemory: { type: Boolean, default: true },
+      responseStyle: { type: String, enum: ['concise', 'balanced', 'thorough'], default: 'balanced' },
+      customInstructions: { type: String, default: '', maxlength: 4000 },
     },
   },
   { timestamps: true },
