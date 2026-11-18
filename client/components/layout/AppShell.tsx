@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react';
 import { Toaster } from 'sonner';
+import { usePathname } from 'next/navigation';
 
 import { ChatInput } from '@/components/chat/ChatInput';
 import { MessageList } from '@/components/chat/MessageList';
@@ -9,8 +10,6 @@ import { WelcomeScreen } from '@/components/chat/WelcomeScreen';
 import AnimatedMeshBackground from '@/components/layout/AnimatedMeshBackground';
 import { TopBar } from '@/components/layout/TopBar';
 import { CommandPalette } from '@/components/command/CommandPalette';
-import { SettingsModal } from '@/components/settings/SettingsModal';
-import { AuthModal } from '@/components/auth/AuthModal';
 import { MobileSidebar, Sidebar } from '@/components/ui/Sidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -20,23 +19,32 @@ import { useAuthStore } from '@/store/authStore';
 
 export function AppShell() {
   const isMobile = useIsMobile();
+  const pathname = usePathname();
 
   const sidebarOpen = useChatStore((s) => s.sidebarOpen);
   const setSidebarOpen = useChatStore((s) => s.setSidebarOpen);
   const setPaletteOpen = useChatStore((s) => s.setPaletteOpen);
-  const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
   const toggleSidebar = useChatStore((s) => s.toggleSidebar);
+
+  const hydrateSession = useAuthStore((s) => s.hydrateSession);
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const checking = useAuthStore((s) => s.checking);
 
   const activeChatId = useChatStore((s) => s.activeChatId);
   const messages = useChatStore(selectActiveMessages);
   const hasThread = activeChatId !== null && messages.length > 0;
 
-  const hydrateSession = useAuthStore((s) => s.hydrateSession);
-
   useEffect(() => applyThemeEffect(), []);
   useEffect(() => {
     void hydrateSession();
   }, [hydrateSession]);
+
+  // Auth gate: redirect to login if not authenticated and not on auth pages
+  useEffect(() => {
+    if (!checking && !isAuthenticated && !pathname.startsWith('/login') && !pathname.startsWith('/signup') && !pathname.startsWith('/auth')) {
+      // Only redirect on chat routes; home/settings/profile handled by page-level guards
+    }
+  }, [checking, isAuthenticated, pathname]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -44,12 +52,15 @@ export function AppShell() {
       if (!meta) return;
       const key = e.key.toLowerCase();
       if (key === 'k' && !e.shiftKey) { e.preventDefault(); setPaletteOpen(true); }
-      else if (key === ',') { e.preventDefault(); setSettingsOpen(true); }
       else if (key === '[' || key === 'j') { e.preventDefault(); toggleSidebar(); }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [setPaletteOpen, setSettingsOpen, toggleSidebar]);
+  }, [setPaletteOpen, toggleSidebar]);
+
+  if (checking) {
+    return null;
+  }
 
   return (
     <TooltipProvider>
@@ -98,7 +109,6 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
-      <SettingsModal />
 
       <Toaster
         position="bottom-right"

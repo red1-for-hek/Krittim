@@ -1,13 +1,30 @@
 'use client';
 
-import { AppShell } from "@/components/layout/AppShell";
-import { useEffect } from "react";
-import { useChatStore } from "@/store/chatStore";
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { AppShell } from '@/components/layout/AppShell';
+import { useChatStore } from '@/store/chatStore';
+import { useAuthStore } from '@/store/authStore';
 
 export default function Home() {
+  const router = useRouter();
+  const { hydrateSession, isAuthenticated, checking } = useAuthStore();
+
   useEffect(() => {
-    // Opening "/" always starts a fresh composer. Do this once only: clearing
-    // activeChatId on every store update breaks the thread while it streams.
+    const check = async () => {
+      await hydrateSession();
+      if (!checking && !isAuthenticated) {
+        router.replace('/login');
+      }
+    };
+    void check();
+  }, [hydrateSession, isAuthenticated, checking, router]);
+
+  if (checking) return null;
+
+  // Opening "/" always starts a fresh composer
+  useEffect(() => {
+    if (!isAuthenticated) return;
     const state = useChatStore.getState();
     const emptyIds = state.chats
       .filter((chat) => (state.messagesByChatId[chat.id] ?? []).length === 0)
@@ -21,7 +38,7 @@ export default function Home() {
       isStreaming: false,
       stopRequested: false,
     }));
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <main className="relative min-h-dvh w-full overflow-hidden">

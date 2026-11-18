@@ -15,8 +15,8 @@ import { ChatList, ProjectsSection } from '@/components/sidebar/ChatList';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useChatStore } from '@/store/chatStore';
-import { AuthModal } from '@/components/auth/AuthModal';
 import { useAuthStore } from '@/store/authStore';
+import { useRouter } from 'next/navigation';
 
 interface SidebarProps {
   onNavigate?: (id: string) => void;
@@ -82,8 +82,8 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
   const collapsed = variant === 'mobile' ? false : !sidebarOpen;
   const setSidebarOpen = useChatStore((s) => s.setSidebarOpen);
   const startNewChat = useChatStore((s) => s.startNewChat);
-  const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
   const { user, isAuthenticated, logout, openAuthModal } = useAuthStore();
+  const router = useRouter();
 
   const [activeNav, setActiveNav] = useState('new');
 
@@ -91,6 +91,12 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
     startNewChat();
     setActiveNav('new');
     onNavigate?.('new');
+    if (variant === 'desktop') setSidebarOpen(true);
+  };
+
+  const openSettings = () => {
+    setActiveNav('settings');
+    router.push('/settings');
     if (variant === 'desktop') setSidebarOpen(true);
   };
 
@@ -156,11 +162,7 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
               isCollapsed={collapsed}
               isActive={activeNav === 'settings'}
               variant={variant}
-              onClick={() => {
-                setActiveNav('settings');
-                setSettingsOpen(true);
-                onNavigate?.('settings');
-              }}
+              onClick={openSettings}
             />
       </div>
 
