@@ -4,10 +4,12 @@ import { Suspense, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
 import { selectChatBySlug, useChatStore } from '@/store/chatStore';
+import { useAuthStore } from '@/store/authStore';
 
 function ChatPageContent() {
   const params = useParams<{ slug: string }>();
   const router = useRouter();
+  const { isAuthenticated, checking, hydrateSession } = useAuthStore();
   const slug = params?.slug ?? '';
 
   const chat = useChatStore(selectChatBySlug(slug));
@@ -15,16 +17,25 @@ function ChatPageContent() {
   const activeChatId = useChatStore((s) => s.activeChatId);
 
   useEffect(() => {
+    const check = async () => {
+      await hydrateSession();
+      if (!checking && !isAuthenticated) {
+        router.replace('/login');
+      }
+    };
+    void check();
+  }, [hydrateSession, isAuthenticated, checking, router]);
+
+  if (checking || !isAuthenticated) return null;
+
+  useEffect(() => {
     if (!chat) {
-      // Slug not found in local store — go home
       router.replace('/');
       return;
     }
-
     if (activeChatId !== chat.id) {
       selectChat(chat.id);
     }
-
   }, [chat, activeChatId, selectChat, router]);
 
   return (

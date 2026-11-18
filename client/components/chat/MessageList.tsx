@@ -1,15 +1,12 @@
 'use client';
 
 import {
-  BookOpen,
   BrainCircuit,
   Check,
   Copy,
   ExternalLink,
   Gauge,
   Globe2,
-  Cpu,
-  FlaskConical,
   ImagePlus,
   Pencil,
   RefreshCw,
@@ -18,8 +15,10 @@ import {
   ThumbsUp,
   Wand2,
   X,
+  Loader2,
 } from 'lucide-react';
-import { memo, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import { memo, useEffect, useMemo, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
@@ -30,12 +29,20 @@ import { cn } from '@/lib/utils';
 import type { ChatMessage, ModelId, SearchStage } from '@/lib/types';
 import { selectActiveMessages, useChatStore } from '@/store/chatStore';
 
-/* Lightweight thread canvas — no animation lib, no Prism.
-   Code = plain <pre> in mono. Assistant prose reads in a serif (Claude-style). */
+/* Lightweight thread canvas — clean, professional, no logo when answering.
+   Assistant prose reads in a serif (Claude-style). */
 
-const MODEL_ICONS: Record<ModelId, typeof FlaskConical> = {
-  r1_xenon: FlaskConical,
-  s1_neon: Gauge,
+const MODEL_ICONS: Record<ModelId, ReactNode> = {
+  r1_xenon: <BrainCircuit className="size-4" strokeWidth={1.9} fill="none" />,
+  s1_neon: <Gauge className="size-4" strokeWidth={1.9} fill="none" />,
+};
+
+const STAGE_ICONS: Record<SearchStage, { icon: ReactNode; label: string }> = {
+  searching: { icon: <Globe2 className="size-3.5" strokeWidth={1.9} />, label: 'Searching the web' },
+  reading: { icon: <Sparkles className="size-3.5" strokeWidth={1.9} />, label: 'Reading sources' },
+  synthesizing: { icon: <BrainCircuit className="size-3.5" strokeWidth={1.9} />, label: 'Synthesizing answer' },
+  thinking: { icon: <Loader2 className="size-3.5 animate-spin" strokeWidth={1.9} />, label: 'Thinking' },
+  generating: { icon: <ImagePlus className="size-3.5" strokeWidth={1.9} />, label: 'Generating image' },
 };
 
 const timeFmt = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -74,9 +81,7 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
           <i className="size-2.5 rounded-full bg-[#febc2e]/80" />
           <i className="size-2.5 rounded-full bg-[#28c840]/80" />
         </span>
-        <span className="ml-1 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-500">
-          {language}
-        </span>
+        <span className="ml-1 font-mono text-[10px] uppercase tracking-[0.14em] text-zinc-500">{language}</span>
         <button
           type="button"
           aria-label="Copy code to clipboard"
@@ -85,9 +90,7 @@ function CodeBlock({ className, children }: { className?: string; children?: Rea
               await navigator.clipboard.writeText(code);
               setCopied(true);
               setTimeout(() => setCopied(false), 1600);
-            } catch {
-              /* clipboard blocked */
-            }
+            } catch { /* clipboard blocked */ }
           }}
           className={cn(
             'ml-auto flex items-center gap-1.5 rounded-md px-2 py-1 font-mono text-[10px] outline-none transition-colors duration-150',
@@ -151,7 +154,6 @@ const markdownComponents = {
     <td className="border-b border-hairline/60 px-3 py-2 align-top last:border-b-0">{children}</td>
   ),
   pre: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   code: ({ className, children, ...rest }: any) => {
     const isBlock = String(children).includes('\n') || /language-/.test(className ?? '');
     if (isBlock) return <CodeBlock className={className}>{children}</CodeBlock>;
@@ -165,22 +167,13 @@ const markdownComponents = {
 
 /* --------------------------- live status pill --------------------------- */
 
-const STAGE_META: Record<SearchStage, { icon: typeof Globe2; label: string }> = {
-  searching: { icon: Globe2, label: 'Searching the web' },
-  reading: { icon: BookOpen, label: 'Reading sources' },
-  synthesizing: { icon: Sparkles, label: 'Synthesizing answer' },
-  thinking: { icon: BrainCircuit, label: 'Thinking' },
-  generating: { icon: Wand2, label: 'Generating image' },
-};
-
 function LiveStatus({ stage, detail }: { stage: SearchStage; detail?: string }) {
-  const meta = STAGE_META[stage] ?? STAGE_META.thinking;
-  const Icon = meta.icon;
+  const meta = STAGE_ICONS[stage] ?? STAGE_ICONS.thinking;
   return (
     <div className="mb-2.5 inline-flex items-center gap-2.5 rounded-full border border-brand/20 bg-brand/[0.06] px-3 py-1.5">
       <span className="relative grid size-4 place-items-center">
         <span className="orb-dot absolute size-2 rounded-full bg-brand" />
-        <Icon className="relative size-3.5 text-brand" strokeWidth={2} />
+        {meta.icon}
       </span>
       <span className="text-shimmer text-[13px] font-medium">{detail || meta.label}</span>
     </div>
@@ -282,7 +275,6 @@ const AssistantBubble = memo(function AssistantBubble({
   streaming: boolean;
 }) {
   const activeModelId = message.model ?? 's1_neon';
-  const Icon = MODEL_ICONS[activeModelId] ?? Gauge;
   const modelName = activeModelId === 's1_neon' ? 'Krittim S1 Neon' : 'Krittim R1 Xenon';
   const [copied, setCopied] = useState(false);
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(message.feedback ?? null);
@@ -293,16 +285,13 @@ const AssistantBubble = memo(function AssistantBubble({
 
   return (
     <div className="msg-enter group/msg flex w-full gap-3">
-      <div className="relative mt-0.5 grid size-8 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-brand via-brand to-brand-soft">
-        <span className="font-serif-display text-[15px] leading-none text-white" style={{ fontStyle: 'italic', fontWeight: 400 }}>K</span>
-      </div>
-
+      {/* No assistant avatar icon — clean like Arena */}
       <div className="min-w-0 flex-1">
         <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70">
           <span className="truncate font-medium text-foreground/90">{modelName}</span>
           {message.mode && (
             <span className="flex shrink-0 items-center gap-1 rounded-full border border-hairline bg-surface-soft px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-brand">
-              <Cpu className="size-2.5 text-brand" strokeWidth={2} /> {message.mode}
+              <Gauge className="size-2.5 text-brand" strokeWidth={2} /> {message.mode}
             </span>
           )}
         </div>
@@ -312,7 +301,6 @@ const AssistantBubble = memo(function AssistantBubble({
 
           {image ? (
             <div className="my-1 overflow-hidden rounded-2xl border border-hairline bg-surface-soft">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={image} alt="Generated" className="block w-full max-w-lg object-contain" loading="lazy" />
               <div className="flex items-center justify-between gap-2 border-t border-hairline px-3 py-2">
                 <span className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -333,7 +321,12 @@ const AssistantBubble = memo(function AssistantBubble({
               <p className="mt-0.5 text-[11px] text-muted-foreground/60">This may take a few seconds.</p>
             </div>
           ) : message.content === '' && streaming ? (
-            !showStatus && <ThinkingDots />
+            <div className="my-1 flex h-48 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-hairline bg-surface-soft">
+              <div className="grid size-10 place-items-center rounded-full bg-brand/10 mb-2">
+                <Loader2 className="size-5 text-brand animate-spin" strokeWidth={2} />
+              </div>
+              <p className="text-xs font-medium text-foreground">Thinking…</p>
+            </div>
           ) : (
             <ReactMarkdown remarkPlugins={[remarkGfm, remarkMath]} rehypePlugins={[rehypeKatex]} components={markdownComponents}>
               {message.content}

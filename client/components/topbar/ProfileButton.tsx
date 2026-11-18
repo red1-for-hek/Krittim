@@ -11,16 +11,16 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useAuthStore } from '@/store/authStore';
-import { useChatStore } from '@/store/chatStore';
+import { useRouter } from 'next/navigation';
 
 /**
  * ProfileButton — top-right auth surface.
- * Logged out: Log in + Sign up buttons opening the (centrally rendered) AuthModal.
+ * Logged out: Log in + Sign up buttons navigate to dedicated pages.
  * Logged in: avatar opening profile menu (profile / settings / sign out).
  */
 export function ProfileButton() {
-  const { user, isAuthenticated, checking, logout, openAuthModal } = useAuthStore();
-  const setSettingsOpen = useChatStore((s) => s.setSettingsOpen);
+  const { user, isAuthenticated, checking, logout } = useAuthStore();
+  const router = useRouter();
 
   if (checking && !isAuthenticated) {
     return (
@@ -36,15 +36,15 @@ export function ProfileButton() {
       <div className="flex items-center gap-2">
         <button
           type="button"
-          onClick={() => openAuthModal('login')}
-          className="h-8 rounded-lg px-3 text-[13px] font-medium text-muted-foreground outline-none transition-all duration-200 hover:bg-surface-hover hover:text-foreground active:scale-95"
+          onClick={() => router.push('/login')}
+          className="h-9 rounded-lg px-3 text-[13px] font-medium text-muted-foreground outline-none transition-all duration-200 hover:bg-surface-hover hover:text-foreground active:scale-95"
         >
           Log in
         </button>
         <button
           type="button"
-          onClick={() => openAuthModal('signup')}
-          className="h-8 rounded-lg bg-gradient-to-br from-brand to-brand-soft px-3.5 text-[13px] font-semibold text-white shadow-[0_0_16px_-4px_var(--brand)] outline-none transition-all duration-200 hover:brightness-110 active:scale-95"
+          onClick={() => router.push('/signup')}
+          className="h-9 rounded-lg bg-gradient-to-br from-brand to-brand-soft px-4 text-[13px] font-semibold text-white shadow-[0_0_16px_-4px_var(--brand)] outline-none transition-all duration-200 hover:brightness-110 active:scale-95"
         >
           Sign up
         </button>
@@ -59,7 +59,7 @@ export function ProfileButton() {
           <button
             type="button"
             aria-label={`Account menu — ${user?.name}`}
-            className="group grid size-8 place-items-center rounded-full outline-none transition-transform duration-200 focus-visible:ring-2 focus-visible:ring-brand/60 active:scale-95"
+            className="group grid size-9 place-items-center rounded-full outline-none transition-transform duration-200 focus-visible:ring-2 focus-visible:ring-brand/60 active:scale-95"
           />
         }
       >
@@ -74,7 +74,7 @@ export function ProfileButton() {
       <DropdownMenuContent
         align="end"
         sideOffset={8}
-        className="w-60 overflow-hidden rounded-2xl border-white/10 bg-popover/90 p-0 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.85)] backdrop-blur-xl"
+        className="w-64 overflow-hidden rounded-2xl border-white/10 bg-popover/90 p-0 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.85)] backdrop-blur-xl"
       >
         <DropdownMenuLabel className="flex items-center gap-3 border-b border-hairline bg-surface px-3.5 py-3">
           {user?.avatarUrl ? (
@@ -95,11 +95,11 @@ export function ProfileButton() {
         </DropdownMenuLabel>
 
         <div className="p-1.5">
-          <DropdownMenuItem onSelect={() => setSettingsOpen(true)} className="gap-2.5 rounded-lg">
+          <DropdownMenuItem onSelect={() => router.push('/profile')} className="gap-2.5 rounded-lg">
             <UserRound className="size-4 text-muted-foreground" strokeWidth={1.9} />
-            Profile &amp; Settings
+            Profile
           </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => setSettingsOpen(true)} className="gap-2.5 rounded-lg">
+          <DropdownMenuItem onSelect={() => router.push('/settings')} className="gap-2.5 rounded-lg">
             <Settings2 className="size-4 text-muted-foreground" strokeWidth={1.9} />
             Customize Krittim
           </DropdownMenuItem>

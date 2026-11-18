@@ -36,19 +36,6 @@ export function WelcomeScreen() {
         />
       </div>
 
-      {/* sigil */}
-      <div
-        className="anim-fade-up relative mb-5 grid size-14 place-items-center rounded-2xl bg-gradient-to-br from-brand to-brand-soft shadow-[0_0_40px_-8px_var(--brand)] ring-1 ring-white/15 sm:size-16"
-        style={{ '--d': '0ms' } as React.CSSProperties}
-      >
-        <svg viewBox="0 0 24 24" fill="none" className="relative size-7 text-white sm:size-8" aria-hidden>
-          <circle cx="12" cy="12" r="2.4" fill="currentColor" />
-          <ellipse cx="12" cy="12" rx="10" ry="4.2" stroke="currentColor" strokeWidth="1.4" opacity="0.95" />
-          <ellipse cx="12" cy="12" rx="10" ry="4.2" stroke="currentColor" strokeWidth="1.4" opacity="0.75" transform="rotate(60 12 12)" />
-          <ellipse cx="12" cy="12" rx="10" ry="4.2" stroke="currentColor" strokeWidth="1.4" opacity="0.55" transform="rotate(120 12 12)" />
-        </svg>
-      </div>
-
       <h1 className="font-sans text-[34px] font-semibold leading-[1.05] tracking-tight text-foreground sm:text-5xl md:text-6xl">
         {WORDS.map((w, i) => (
           <span key={w} className="anim-word" style={{ '--d': DELAYS[i] } as React.CSSProperties}>

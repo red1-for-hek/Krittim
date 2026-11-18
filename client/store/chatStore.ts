@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { toast } from 'sonner';
 import { expireSession, getApiBaseUrl, refreshAccessToken } from '@/store/authStore';
+import { useAuthStore } from '@/store/authStore';
 
 import {
   PERSISTED_STATE_KEYS,
@@ -547,6 +548,15 @@ export const useChatStore = create<ChatState>()(
       const { isStreaming, model, reasoningMode, webSearch, imageMode, customInstructions, responseStyle } = get();
       const trimmed = content.trim();
       if (!trimmed || isStreaming) return;
+
+      // Auth gate: require login before sending any message
+      const { isAuthenticated } = useAuthStore.getState();
+      if (!isAuthenticated) {
+        if (typeof window !== 'undefined') {
+          window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.pathname)}`;
+        }
+        return;
+      }
 
       // If no active chat yet, create one and navigate to its slug
       let chatId = get().activeChatId;
