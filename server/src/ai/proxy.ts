@@ -109,8 +109,10 @@ function getProviders(modelId: ModelId, mode: ReasoningMode, hasImage: boolean):
 }
 
 /**
- * Generate an image via xKiro (sensenova-u1.5-lite).
- * Returns the image URL or base64 data from the response.
+ * Generate an image.
+ * Tries xKiro's dedicated image endpoint first, then falls back to
+ * Pollinations.ai (free, no API key required) so image gen never hard-fails.
+ * Returns an image URL.
  */
 export async function generateImage(prompt: string): Promise<string> {
   const xkiroBase = process.env.XKIRO_BASE_URL ?? 'https://api.xkiro.com/v1';
@@ -118,18 +120,21 @@ export async function generateImage(prompt: string): Promise<string> {
 
   let lastError: Error | null = null;
 
+  /* ---- 1. xKiro dedicated image endpoint (OpenAI-style /images/generations) ---- */
   for (const apiKey of keys) {
     try {
-      const res = await fetch(completionUrl(xkiroBase), {
+      const res = await fetch(`${xkiroBase.replace(/\/$/, '')}/images/generations`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${apiKey}`,
         },
+        signal: AbortSignal.timeout(60_000),
         body: JSON.stringify({
           model: process.env.XKIRO_IMAGE_MODEL ?? 'sensenova/sensenova-u1.5-lite',
-          messages: [{ role: 'user', content: prompt }],
-          stream: false,
+          prompt,
+          n: 1,
+          size: '1024x1024',
         }),
       });
 
@@ -144,14 +149,42 @@ export async function generateImage(prompt: string): Promise<string> {
         continue;
       }
 
-      const json = await res.json();
-      // Response may be image URL or base64 in content
-      const content: string = json.choices?.[0]?.message?.content ?? '';
-      if (!content) throw new Error('Empty image response');
-      return content;
+      const json = await res.json().catch(() => ({}));
+      const url: string | undefined =
+        json.data?.[0]?.url ??
+        json.data?.[0]?.b64_json ??
+        json.url ??
+        json.choices?.[0]?.message?.content;
+      if (url) return url;
+      throw new Error('Empty image response from xKiro');
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
+      console.warn('[ai] xKiro image threw:', lastError.message);
     }
+  }
+
+  /* ---- 2. Pollinations.ai fallback — free, no API key, flux model ---- */
+  try {
+    const encodedPrompt = encodeURIComponent(prompt.trim());
+    const pollinationsUrl = `https://image.pollinations.ai/prompt/${encodedPrompt}?model=flux&nologo=true&width=1024&height=1024`;
+    const res = await fetch(pollinationsUrl, {
+      method: 'GET',
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; KrittimImageGen/1.0)',
+        Accept: 'image/*,*/*',
+      },
+      signal: AbortSignal.timeout(60_000),
+      redirect: 'follow',
+    });
+    if (res.ok && res.url && res.url !== pollinationsUrl) {
+      // Pollinations redirects to the actual image CDN URL — return that.
+      return res.url;
+    }
+    // Even if it returns the image directly, the prompt URL itself is a valid image source.
+    return pollinationsUrl;
+  } catch (err) {
+    lastError = err instanceof Error ? err : new Error(String(err));
+    console.warn('[ai] Pollinations fallback threw:', lastError.message);
   }
 
   throw lastError ?? new Error('Image generation failed');
