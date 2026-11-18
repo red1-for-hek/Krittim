@@ -323,6 +323,15 @@ const AssistantBubble = memo(function AssistantBubble({
                 </a>
               </div>
             </div>
+          ) : message.content === '' && streaming && message.status === 'generating' ? (
+            /* ChatGPT-style image generating placeholder */
+            <div className="my-1 flex h-80 w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-hairline bg-surface-soft">
+              <div className="grid size-10 place-items-center rounded-full bg-brand/10 mb-2">
+                <ImagePlus className="size-5 text-brand" strokeWidth={2} />
+              </div>
+              <p className="text-xs font-medium text-foreground">Generating your image…</p>
+              <p className="mt-0.5 text-[11px] text-muted-foreground/60">This may take a few seconds.</p>
+            </div>
           ) : message.content === '' && streaming ? (
             !showStatus && <ThinkingDots />
           ) : (

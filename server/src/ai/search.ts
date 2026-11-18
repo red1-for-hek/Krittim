@@ -6,7 +6,7 @@
  *
  *   1. needsSearch()      — decide if a question even needs the web
  *   2. planQueries()      — turn the message into clean search terms
- *   3. ddgSearch()        — fetch ranked results (DuckDuckGo HTML)
+ *   3. searchWeb()        — DuckDuckGo → Bing fallback (ranked results)
  *   4. fetchReadable()    — pull + de-HTML the top pages for real substance
  *   5. research()         — assemble numbered sources + a context block the
  *                           model is instructed to cite as [1] [2] …
@@ -28,7 +28,9 @@ export interface ResearchResult {
 }
 
 const UA =
-  'Mozilla/5.0 (compatible; KrittimResearch/1.0; +https://krittim.ai) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124 Safari/537.36';
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+const BING_UA =
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
 
 /* ----------------------------- text helpers ----------------------------- */
 
@@ -124,6 +126,50 @@ async function ddgSearch(query: string, max = 6): Promise<SearchSource[]> {
   return sources;
 }
 
+/** Bing HTML search fallback — used when DuckDuckGo is blocked or empty. */
+async function bingSearch(query: string, max = 6): Promise<SearchSource[]> {
+  const url = `https://www.bing.com/search?q=${encodeURIComponent(query)}&count=${max}`;
+  const res = await fetch(url, {
+    headers: { 'User-Agent': BING_UA, 'Accept-Language': 'en-US,en;q=0.9' },
+    signal: AbortSignal.timeout(9000),
+  });
+  if (!res.ok) throw new Error(`bing HTTP ${res.status}`);
+  const html = await res.text();
+
+  const blocks = [...html.matchAll(/<li class="b_algo"[\s\S]*?<\/li>/g)];
+  const sources: SearchSource[] = [];
+  for (const block of blocks) {
+    if (sources.length >= max) break;
+    const hrefMatch = block[0].match(/<a[^>]+href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/);
+    const titleMatch = block[0].match(/<h2[^>]*>([\s\S]*?)<\/h2>/);
+    const snippetMatch = block[0].match(/<p[^>]*>([\s\S]*?)<\/p>/);
+    if (!hrefMatch) continue;
+    const href = decodeEntities(hrefMatch[1]);
+    if (!href.startsWith('http')) continue;
+    const title = decodeEntities(stripTags(titleMatch ? titleMatch[1] : hrefMatch[2] || href));
+    const snippet = snippetMatch ? decodeEntities(stripTags(snippetMatch[1])) : '';
+    sources.push({ index: sources.length + 1, title: title || href, url: href, snippet });
+  }
+  return sources;
+}
+
+/** Try DDG first, fall back to Bing if DDG is blocked or returns nothing. */
+export async function searchWeb(query: string, max = 6): Promise<SearchSource[]> {
+  try {
+    const results = await ddgSearch(query, max);
+    if (results.length) return results;
+  } catch {
+    /* DDG blocked — fall through to Bing */
+  }
+  try {
+    const results = await bingSearch(query, max);
+    if (results.length) return results;
+  } catch {
+    /* Bing also failed */
+  }
+  return [];
+}
+
 async function fetchReadable(url: string, maxChars = 1600): Promise<string> {
   try {
     const res = await fetch(url, {
@@ -145,7 +191,7 @@ async function fetchReadable(url: string, maxChars = 1600): Promise<string> {
 
 export async function research(rawMessage: string, maxPages = 3): Promise<ResearchResult> {
   const [query] = planQueries(rawMessage);
-  const results = await ddgSearch(query, 6);
+  const results = await searchWeb(query, 6);
   if (!results.length) return { sources: [], context: '' };
 
   const top = results.slice(0, maxPages);

@@ -9,6 +9,7 @@ import chatsRouter from './routes/chats.js';
 import projectsRouter from './routes/projects.js';
 import aiRouter from './routes/ai.js';
 import settingsRouter from './routes/settings.js';
+import cleanupRouter from './routes/cleanup.js';
 
 const app = express();
 
@@ -51,6 +52,7 @@ app.use('/api/chats', chatsRouter);
 app.use('/api/projects', projectsRouter);
 app.use('/api/ai', aiLimiter, aiRouter);
 app.use('/api/settings', settingsRouter);
+app.use('/api/cleanup', cleanupRouter);
 app.get('/', (_req, res) => res.json({ ok: true, service: 'krittim-server' }));
 app.get('/health', (_req, res) => res.json({ ok: true, ts: Date.now() }));
 app.use((_req, res) => res.status(404).json({ error: 'Not found' }));
