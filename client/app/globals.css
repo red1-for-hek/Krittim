@@ -116,38 +116,65 @@
 }
 
 .light {
-  --background: oklch(0.985 0.002 155);
-  --foreground: oklch(0.2 0.012 155);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.2 0.012 155);
-  --popover: oklch(0.995 0.001 155);
-  --popover-foreground: oklch(0.2 0.012 155);
-  --primary: oklch(0.22 0.015 155);
-  --primary-foreground: oklch(0.985 0.002 155);
-  --secondary: oklch(0.94 0.004 155);
-  --secondary-foreground: oklch(0.24 0.012 155);
-  --muted: oklch(0.935 0.004 155);
-  --muted-foreground: oklch(0.52 0.018 155);
-  --accent: oklch(0.92 0.006 155);
-  --accent-foreground: oklch(0.2 0.012 155);
+  --background: oklch(0.955 0.016 160);
+  --foreground: oklch(0.23 0.014 160);
+  --card: oklch(1 0 0 / 60%);
+  --card-foreground: oklch(0.23 0.014 160);
+  --popover: oklch(0.985 0.008 160);
+  --popover-foreground: oklch(0.23 0.014 160);
+  --primary: oklch(0.25 0.014 160);
+  --primary-foreground: oklch(0.97 0.002 160);
+  --secondary: oklch(0.90 0.008 160);
+  --secondary-foreground: oklch(0.25 0.014 160);
+  --muted: oklch(0.88 0.008 160);
+  --muted-foreground: oklch(0.52 0.016 160);
+  --accent: oklch(0.86 0.01 160);
+  --accent-foreground: oklch(0.23 0.014 160);
   --destructive: oklch(0.55 0.22 26);
-  --border: oklch(0.24 0.012 155 / 10%);
-  --input: oklch(0.24 0.012 155 / 16%);
+  --border: oklch(0.25 0.014 160 / 14%);
+  --input: oklch(0.25 0.014 160 / 18%);
   --ring: oklch(0.52 0.18 155);
-  --brand: oklch(0.48 0.18 155);
-  --brand-soft: oklch(0.58 0.14 165);
+  --brand: oklch(0.5 0.17 155);
+  --brand-soft: oklch(0.6 0.13 165);
   --brand-glow: oklch(0.62 0.2 155);
-  --glass: oklch(1 0 0 / 75%);
-  --glass-border: oklch(0.24 0.012 155 / 10%);
-  --sidebar: oklch(0.965 0.003 155 / 88%);
-  --sidebar-foreground: oklch(0.22 0.012 155);
+  --glass: oklch(1 0 0 / 55%);
+  --glass-border: oklch(0.25 0.014 160 / 12%);
+  --sidebar: oklch(0.945 0.012 160 / 82%);
+  --sidebar-foreground: oklch(0.23 0.014 160);
   --sidebar-primary: var(--brand);
-  --sidebar-primary-foreground: oklch(0.98 0.004 155);
-  --sidebar-accent: oklch(0.24 0.012 155 / 6%);
-  --sidebar-accent-foreground: oklch(0.2 0.012 155);
-  --sidebar-border: oklch(0.24 0.012 155 / 8%);
+  --sidebar-primary-foreground: oklch(0.98 0.004 160);
+  --sidebar-accent: oklch(0.25 0.014 160 / 8%);
+  --sidebar-accent-foreground: oklch(0.23 0.014 160);
+  --sidebar-border: oklch(0.25 0.014 160 / 10%);
   --sidebar-ring: var(--ring);
+  --bg-wash-color: oklch(0.2 0.03 160 / 18%);
+  --blob-a-color: oklch(0.6 0.12 160 / 25%);
+  --blob-b-color: oklch(0.65 0.1 170 / 18%);
+  --vignette-color: oklch(0.18 0.01 160 / 55%);
   color-scheme: light;
+}
+
+/* ---- background mesh color tokens (dark = default, light override above) ---- */
+:root,
+.dark {
+  --bg-wash-color: oklch(0.18 0.04 155 / 50%);
+  --blob-a-color: oklch(0.52 0.18 155 / 38%);
+  --blob-b-color: oklch(0.65 0.14 175 / 28%);
+  --vignette-color: oklch(0.1 0.005 155 / 90%);
+}
+
+/* background mesh — class-based so light mode overrides apply cleanly */
+.bg-wash {
+  background: radial-gradient(ellipse 120% 80% at 50% -10%, var(--bg-wash-color), transparent 60%);
+}
+.blob-a {
+  background: radial-gradient(circle at center, var(--blob-a-color), transparent 65%);
+}
+.blob-b {
+  background: radial-gradient(circle at center, var(--blob-b-color), transparent 65%);
+}
+.vignette {
+  background: radial-gradient(ellipse 90% 90% at 50% 50%, transparent 55%, var(--vignette-color));
 }
 
 @layer base {
@@ -184,8 +211,11 @@
   *::-webkit-scrollbar-track {
     background: transparent;
   }
-  html.theme-anim body {
-    transition: background-color 0.35s ease, color 0.35s ease;
+  /* smooth theme + surface shifts — light ↔ dark glides, no flash */
+  body {
+    transition:
+      background-color 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+      color 0.5s cubic-bezier(0.22, 1, 0.36, 1);
   }
 }
 
