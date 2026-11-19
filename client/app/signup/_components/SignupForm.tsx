@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, User } from 'lucide-react';
+import { Mail, Lock, User, Globe, GitBranch, MessageSquare } from 'lucide-react';
 
 import { useAuthStore } from '@/store/authStore';
 
@@ -15,6 +15,7 @@ export function SignupForm() {
   const [isLoading, setIsLoading] = useState(false);
 
   const signupWithEmail = useAuthStore((s) => s.signupWithEmail);
+  const loginWithProvider = useAuthStore((s) => s.loginWithProvider);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,6 +31,10 @@ export function SignupForm() {
     }
   };
 
+  const handleOAuth = (provider: 'google' | 'github' | 'discord') => {
+    loginWithProvider(provider);
+  };
+
   return (
     <div className="flex min-h-dvh w-full items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
@@ -41,6 +46,41 @@ export function SignupForm() {
         <p className="mb-8 text-sm text-muted-foreground">
           Join Krittim AI. Sync your chats across devices.
         </p>
+
+        {/* OAuth options */}
+        <div className="space-y-2 mb-8">
+          <button
+            type="button"
+            onClick={() => handleOAuth('google')}
+            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-hairline bg-surface text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/30 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
+          >
+            <Globe className="size-5" strokeWidth={2} />
+            Continue with Google
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOAuth('github')}
+            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-hairline bg-surface text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/30 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
+          >
+            <GitBranch className="size-5" strokeWidth={2} />
+            Continue with GitHub
+          </button>
+          <button
+            type="button"
+            onClick={() => handleOAuth('discord')}
+            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-hairline bg-surface text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/30 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
+          >
+            <MessageSquare className="size-5" strokeWidth={2} />
+            Continue with Discord
+          </button>
+        </div>
+
+        <div className="relative mb-8">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-hairline"></span>
+          </div>
+          <span className="relative px-4 text-xs font-medium text-muted-foreground">Or create with email</span>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">

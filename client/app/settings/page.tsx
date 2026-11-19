@@ -29,14 +29,22 @@ import { RESPONSE_STYLE_OPTIONS, type ResponseStyle } from '@/lib/types';
 import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
 
-function SectionCard({ children, danger = false }: { children: React.ReactNode; danger?: boolean }) {
+function SectionCard({
+  children,
+  danger = false,
+}: {
+  children: React.ReactNode;
+  danger?: boolean;
+}) {
   return (
-    <div className={cn(
-      'rounded-xl border p-6 transition-colors',
-      danger
-        ? 'border-red-500/20 bg-red-500/[0.04] hover:border-red-500/35'
-        : 'border-hairline bg-surface hover:bg-surface-soft',
-    )}>
+    <div
+      className={cn(
+        'rounded-xl border p-6 transition-colors',
+        danger
+          ? 'border-red-500/20 bg-red-500/[0.04] hover:border-red-500/35'
+          : 'border-hairline bg-surface hover:bg-surface-soft',
+      )}
+    >
       {children}
     </div>
   );
@@ -86,7 +94,10 @@ function ThemeOption({
   return (
     <button
       type="button"
-      onClick={() => { onChange(value); toast.success(`${label} mode applied`, { duration: 1400 }); }}
+      onClick={() => {
+        onChange(value);
+        toast.success(`${label} mode applied`, { duration: 1400 });
+      }}
       aria-pressed={active}
       className={cn(
         'flex min-h-[80px] flex-col items-center justify-center gap-2 rounded-xl border px-4 py-4 text-sm font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-[0.97]',
@@ -104,7 +115,6 @@ function ThemeOption({
 
 export default function SettingsPage() {
   const router = useRouter();
-  const setOpen = useChatStore((s) => s.setSettingsOpen);
   const setPaletteOpen = useChatStore((s) => s.setPaletteOpen);
 
   const theme = useChatStore((s) => s.theme);
@@ -137,10 +147,8 @@ export default function SettingsPage() {
   };
 
   useEffect(() => {
-    // Close any open modal when navigating to settings page
-    setOpen(false);
     setPaletteOpen(false);
-  }, [setOpen, setPaletteOpen]);
+  }, [setPaletteOpen]);
 
   const handleBack = () => {
     router.back();
@@ -163,193 +171,171 @@ export default function SettingsPage() {
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
-        <nav className="hidden w-64 flex-col border-r border-hairline md:flex">
-          <div className="flex h-full flex-col overflow-y-auto">
-            <Tabs defaultValue="appearance" className="w-full">
-              <TabsList className="w-full p-2 gap-1">
-                <TabsTrigger value="appearance" className="w-full rounded-lg text-xs font-medium">
-                  Appearance
-                </TabsTrigger>
-                <TabsTrigger value="chat" className="w-full rounded-lg text-xs font-medium">
-                  Chat
-                </TabsTrigger>
-                <TabsTrigger value="personalize" className="w-full rounded-lg text-xs font-medium">
-                  Personalize
-                </TabsTrigger>
-                <TabsTrigger value="account" className="w-full rounded-lg text-xs font-medium">
-                  Account
-                </TabsTrigger>
-                <TabsTrigger value="danger" className="w-full rounded-lg text-xs font-medium text-red-400/80">
-                  Data
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="appearance" className="p-4 space-y-4">
-                <div className="grid grid-cols-3 gap-2">
-                  <ThemeOption value="dark" current={theme} onChange={setTheme} label="Dark" icon={Moon} />
-                  <ThemeOption value="light" current={theme} onChange={setTheme} label="Light" icon={Sun} />
-                  <ThemeOption value="system" current={theme} onChange={setTheme} label="System" icon={MonitorSmartphone} />
-                </div>
-                <SectionCard>
-                  <SettingRow
-                    icon={Zap}
-                    title="Accent color"
-                    description="Deep emerald glow used across buttons and active states."
-                  >
-                    <span className="grid size-9 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-soft text-sm font-bold text-white">
-                      K
-                    </span>
-                  </SettingRow>
-                </SectionCard>
-                <SectionCard>
-                  <SettingRow icon={Bell} title="Timestamps" description="Show message time under each bubble.">
-                    <Switch checked={showTimestamps} onCheckedChange={(v) => flip(v === true, setShowTimestamps, 'Timestamps')} aria-label="Show timestamps" />
-                  </SettingRow>
-                </SectionCard>
-              </TabsContent>
-
-              <TabsContent value="chat" className="p-4 space-y-4">
-                <SectionCard>
-                  <SettingRow icon={Brain} title="AI Memory" description="Remember preferences and context across conversations.">
-                    <Switch checked={aiMemory} onCheckedChange={(v) => flip(v === true, setAiMemory, 'AI memory')} aria-label="Enable AI memory" />
-                  </SettingRow>
-                </SectionCard>
-                <SectionCard>
-                  <SettingRow icon={Radio} title="Stream responses" description="Render tokens as they arrive. Turn off for full answers at once.">
-                    <Switch checked={streamResponses} onCheckedChange={(v) => flip(v === true, setStreamResponses, 'Streaming')} aria-label="Stream responses" />
-                  </SettingRow>
-                </SectionCard>
-                <SectionCard>
-                  <SettingRow icon={Keyboard} title="Enter to send" description="Enter sends, Shift+Enter adds a new line.">
-                    <Switch checked={enterToSend} onCheckedChange={(v) => flip(v === true, setEnterToSend, 'Enter to send')} aria-label="Enter to send" />
-                  </SettingRow>
-                </SectionCard>
-              </TabsContent>
-
-              <TabsContent value="personalize" className="p-4 space-y-4">
-                <SectionCard>
-                  <div className="flex flex-col gap-2">
-                    <div className="flex items-center gap-3">
-                      <span className="grid size-9 shrink-0 place-items-center rounded-lg border border-hairline bg-surface-soft text-brand">
-                        <UserRound className="size-4" strokeWidth={1.9} />
-                      </span>
-                      <div className="min-w-0">
-                        <p className="text-sm font-medium text-foreground">Custom instructions</p>
-                        <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                          Standing directions Krittim follows in every chat — your role, tone, or rules.
-                        </p>
-                      </div>
-                    </div>
-                    <textarea
-                      value={customInstructions}
-                      onChange={(e) => setCustomInstructions(e.target.value)}
-                      maxLength={4000}
-                      rows={4}
-                      placeholder="e.g. I'm a backend engineer. Answer with TypeScript, be concise, and always mention trade-offs."
-                      className="w-full resize-y rounded-xl border border-hairline bg-surface px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
-                    />
-                    <p className="text-right font-mono text-[10px] text-muted-foreground/60">{customInstructions.length}/4000</p>
-                  </div>
-                </SectionCard>
-
-                <SectionCard>
-                  <div className="flex flex-col gap-2.5">
-                    <p className="text-sm font-medium text-foreground">Response length</p>
-                    <div className="grid grid-cols-3 gap-2">
-                      {RESPONSE_STYLE_OPTIONS.map((option) => {
-                        const active = responseStyle === option.id;
-                        return (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => { setResponseStyle(option.id as ResponseStyle); toast.success(`${option.name} responses`, { duration: 1200 }); }}
-                            aria-pressed={active}
-                            className={cn(
-                              'flex flex-col items-center gap-0.5 rounded-xl border px-3 py-4 text-xs font-medium outline-none transition-colors active:scale-[0.97]',
-                              active ? 'border-brand/50 bg-brand/10 text-foreground' : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:text-foreground',
-                            )}
-                          >
-                            <span>{option.name}</span>
-                            <span className="text-[10px] font-normal text-muted-foreground/70">{option.tagline}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </SectionCard>
-              </TabsContent>
-
-              <TabsContent value="account" className="p-4 space-y-4">
-                <SectionCard>
-                  <div className="flex items-center gap-3">
-                    <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-sm font-semibold text-white">
-                      {user?.initials}
-                    </span>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-foreground">{user?.name}</p>
-                      <p className="truncate text-xs text-muted-foreground">{user?.email}</p>
-                    </div>
-                    <Button variant="ghost" size="sm" onClick={() => { logout(); toast.success('Logged out'); }}>
-                      <LogOut className="size-3.5" /> Log out
-                    </Button>
-                  </div>
-                </SectionCard>
-                {!isAuthenticated && (
-                  <SectionCard>
-                    <SettingRow icon={UserRound} title="Not signed in" description="Log in to sync chats across devices.">
-                      <Button size="sm" onClick={() => router.push('/login')}>
-                        Log in
-                      </Button>
-                    </SettingRow>
-                  </SectionCard>
-                )}
-              </TabsContent>
-
-              <TabsContent value="danger" className="p-4 space-y-4">
-                <SectionCard danger>
-                  <SettingRow icon={Trash2} title="Clear all chats" description="Removes every message in this session. Cannot be undone.">
-                    <Button
-                      variant="ghost" size="sm" aria-label="Clear all chats"
-                      onClick={() => {
-                        if (confirmingClear) { clearAllChats(); setConfirmingClear(false); router.push('/'); }
-                        else { setConfirmingClear(true); setTimeout(() => setConfirmingClear(false), 3000); }
-                      }}
-                      className={cn('h-9 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300', confirmingClear && 'bg-red-500 text-white hover:bg-red-500 hover:text-white')}
-                    >
-                      <Trash2 className="size-3.5" strokeWidth={2.2} />
-                      {confirmingClear ? 'Tap again to confirm' : 'Clear chats'}
-                    </Button>
-                  </SettingRow>
-                </SectionCard>
-                <SectionCard danger>
-                  <SettingRow icon={DatabaseZap} title="Clear local storage" description="Wipes chats, messages and preferences from this browser.">
-                    <Button
-                      variant="ghost" size="sm" aria-label="Clear local storage"
-                      onClick={() => {
-                        if (confirmingReset) { resetAllData(); setConfirmingReset(false); router.push('/'); }
-                        else { setConfirmingReset(true); setTimeout(() => setConfirmingReset(false), 3000); }
-                      }}
-                      className={cn('h-9 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300', confirmingReset && 'bg-red-500 text-white hover:bg-red-500 hover:text-white')}
-                    >
-                      <Eraser className="size-3.5" />
-                      {confirmingReset ? 'Tap again to confirm' : 'Clear storage'}
-                    </Button>
-                  </SettingRow>
-                </SectionCard>
-              </TabsContent>
-            </Tabs>
-          </div>
-        </nav>
-
-        <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
-          {/* Content is rendered inline in the Tabs above — left nav is the settings shell */}
-          <div className="flex h-full flex-col overflow-y-auto p-8 md:p-12">
-            {/* This area is intentionally empty — settings content is in the left nav for a focused experience */}
-            <div className="flex h-full items-center justify-center text-muted-foreground/50 text-sm">
-              Select a category from the left to view settings.
+      <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
+        <div className="h-full overflow-y-auto p-6 md:p-8">
+          {/* Appearance */}
+          <SectionCard>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Appearance</h2>
+            <div className="grid grid-cols-3 gap-2">
+              <ThemeOption value="dark" current={theme} onChange={setTheme} label="Dark" icon={Moon} />
+              <ThemeOption value="light" current={theme} onChange={setTheme} label="Light" icon={Sun} />
+              <ThemeOption value="system" current={theme} onChange={setTheme} label="System" icon={MonitorSmartphone} />
             </div>
-          </div>
+          </SectionCard>
+
+          {/* Accent color */}
+          <SectionCard>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex min-w-0 gap-3">
+                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-hairline bg-surface-soft text-brand">
+                  <Zap className="size-4" strokeWidth={1.9} />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-foreground">Accent color</p>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    Deep emerald glow used across buttons and active states.
+                  </p>
+                </div>
+              </div>
+              <div className="grid size-10 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-soft text-sm font-bold text-white">
+                K
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Timestamps */}
+          <SectionCard>
+            <SettingRow icon={Bell} title="Timestamps" description="Show message time under each bubble.">
+              <Switch checked={showTimestamps} onCheckedChange={(v) => flip(v === true, setShowTimestamps, 'Timestamps')} aria-label="Show timestamps" />
+            </SettingRow>
+          </SectionCard>
+
+          {/* Chat behavior */}
+          <SectionCard>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Chat behavior</h2>
+            <SettingRow icon={Brain} title="AI Memory" description="Remember preferences and context across conversations.">
+              <Switch checked={aiMemory} onCheckedChange={(v) => flip(v === true, setAiMemory, 'AI memory')} aria-label="Enable AI memory" />
+            </SettingRow>
+            <SettingRow icon={Radio} title="Stream responses" description="Render tokens as they arrive. Turn off for full answers at once.">
+              <Switch checked={streamResponses} onCheckedChange={(v) => flip(v === true, setStreamResponses, 'Streaming')} aria-label="Stream responses" />
+            </SettingRow>
+            <SettingRow icon={Keyboard} title="Enter to send" description="Enter sends, Shift+Enter adds a new line.">
+              <Switch checked={enterToSend} onCheckedChange={(v) => flip(v === true, setEnterToSend, 'Enter to send')} aria-label="Enter to send" />
+            </SettingRow>
+          </SectionCard>
+
+          {/* Personalize */}
+          <SectionCard>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Personalize</h2>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">Custom instructions</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                  Standing directions Krittim follows in every chat — your role, tone, or rules.
+                </p>
+                <textarea
+                  value={customInstructions}
+                  onChange={(e) => setCustomInstructions(e.target.value)}
+                  maxLength={4000}
+                  rows={4}
+                  placeholder="e.g. I'm a backend engineer. Answer with TypeScript, be concise, and always mention trade-offs."
+                  className="w-full resize-y rounded-xl border border-hairline bg-surface px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+                />
+                <p className="mt-1 text-right font-mono text-[10px] text-muted-foreground/60">{customInstructions.length}/4000</p>
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Response length */}
+          <SectionCard>
+            <div className="space-y-2">
+              <p className="text-sm font-medium text-foreground">Response length</p>
+              <div className="grid grid-cols-3 gap-2">
+                {RESPONSE_STYLE_OPTIONS.map((option) => {
+                  const active = responseStyle === option.id;
+                  return (
+                    <button
+                      key={option.id}
+                      type="button"
+                      onClick={() => {
+                        setResponseStyle(option.id as ResponseStyle);
+                        toast.success(`${option.name} responses`, { duration: 1200 });
+                      }}
+                      aria-pressed={active}
+                      className={cn(
+                        'flex flex-col items-center gap-0.5 rounded-xl border px-3 py-4 text-xs font-medium outline-none transition-colors active:scale-[0.97]',
+                        active ? 'border-brand/50 bg-brand/10 text-foreground' : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:text-foreground',
+                      )}
+                    >
+                      <span>{option.name}</span>
+                      <span className="text-[10px] font-normal text-muted-foreground/70">{option.tagline}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </SectionCard>
+
+          {/* Account */}
+          <SectionCard>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Account</h2>
+            <div className="flex items-center gap-3">
+              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-sm font-semibold text-white">
+                {user?.initials ?? '?'}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-foreground">{user?.name ?? 'Not signed in'}</p>
+                <p className="truncate text-xs text-muted-foreground">{user?.email ?? 'Sign in to sync chats'}</p>
+              </div>
+            </div>
+
+            <div className="mt-4">
+              {isAuthenticated ? (
+                <Button variant="ghost" size="sm" onClick={() => { logout(); toast.success('Logged out'); }}>
+                  <LogOut className="size-3.5" /> Log out
+                </Button>
+              ) : (
+                <Button size="sm" onClick={() => router.push('/login')}>
+                  Log in
+                </Button>
+              )}
+            </div>
+          </SectionCard>
+
+          {/* Data / Danger zone */}
+          <SectionCard danger>
+            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-red-400/80">Data</h2>
+            <SettingRow icon={Trash2} title="Clear all chats" description="Removes every message in this session. Cannot be undone.">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Clear all chats"
+                onClick={() => {
+                  if (confirmingClear) { clearAllChats(); setConfirmingClear(false); router.push('/'); }
+                  else { setConfirmingClear(true); setTimeout(() => setConfirmingClear(false), 3000); }
+                }}
+                className={cn('h-9 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300', confirmingClear && 'bg-red-500 text-white hover:bg-red-500 hover:text-white')}
+              >
+                <Trash2 className="size-3.5" strokeWidth={2.2} />
+                {confirmingClear ? 'Tap again to confirm' : 'Clear chats'}
+              </Button>
+            </SettingRow>
+            <SettingRow icon={DatabaseZap} title="Clear local storage" description="Wipes chats, messages and preferences from this browser.">
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label="Clear local storage"
+                onClick={() => {
+                  if (confirmingReset) { resetAllData(); setConfirmingReset(false); router.push('/'); }
+                  else { setConfirmingReset(true); setTimeout(() => setConfirmingReset(false), 3000); }
+                }}
+                className={cn('h-9 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300', confirmingReset && 'bg-red-500 text-white hover:bg-red-500 hover:text-white')}
+              >
+                <Eraser className="size-3.5" />
+                {confirmingReset ? 'Tap again to confirm' : 'Clear storage'}
+              </Button>
+            </SettingRow>
+          </SectionCard>
         </div>
       </div>
     </div>

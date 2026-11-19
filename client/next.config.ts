@@ -9,12 +9,11 @@ const nextConfig: NextConfig = {
   // Allow the Arena preview proxy (and Vercel) to load dev assets cross-origin.
   allowedDevOrigins: ["*.e2b.app", "*.vercel.app"],
   async rewrites() {
-    return [
-      {
-        source: "/api/:path*",
-        destination: "http://127.0.0.1:4000/api/:path*",
-      },
-    ];
+    // Only proxy /api to the local dev server during development.
+    // In production, the browser calls NEXT_PUBLIC_API_URL directly.
+    return process.env.NODE_ENV === 'development'
+      ? [{ source: "/api/:path*", destination: "http://127.0.0.1:4000/api/:path*" }]
+      : [];
   },
   turbopack: {
     root: path.resolve(__dirname),

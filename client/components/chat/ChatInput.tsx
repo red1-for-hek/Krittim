@@ -303,10 +303,10 @@ export function ChatInput({ centered = false }: ChatInputProps) {
                 aria-label="Toggle web search"
                 title={webSearch ? 'Web search on — Krittim will research live sources' : 'Enable web search'}
                 className={cn(
-                  'grid size-8 place-items-center rounded-xl border outline-none transition-colors duration-150 active:scale-95',
+                  'grid size-8 place-items-center rounded-xl border outline-none transition-colors duration-150 active:scale-95 shadow-sm',
                   'min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0',
                   webSearch
-                    ? 'border-brand/40 bg-brand/15 text-brand'
+                    ? 'border-brand/50 bg-brand/20 text-brand shadow-[0_0_16px_-4px_oklch(0.62_0.18_155/45%)]'
                     : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:bg-surface-hover hover:text-foreground',
                 )}
               >
@@ -320,10 +320,10 @@ export function ChatInput({ centered = false }: ChatInputProps) {
                 aria-label="Toggle image generation"
                 title={imageMode ? 'Image mode on — describe an image to create' : 'Generate an image'}
                 className={cn(
-                  'grid size-8 place-items-center rounded-xl border outline-none transition-colors duration-150 active:scale-95',
+                  'grid size-8 place-items-center rounded-xl border outline-none transition-colors duration-150 active:scale-95 shadow-sm',
                   'min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0',
                   imageMode
-                    ? 'border-brand/40 bg-brand/15 text-brand'
+                    ? 'border-brand/50 bg-brand/20 text-brand shadow-[0_0_16px_-4px_oklch(0.62_0.18_155/45%)]'
                     : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:bg-surface-hover hover:text-foreground',
                 )}
               >

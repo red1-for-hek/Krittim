@@ -2,6 +2,7 @@
 
 import {
   ChevronLeft,
+  ChevronRight,
   MessagesSquare,
   SlidersHorizontal,
   Hexagon,
@@ -187,8 +188,17 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
       {/* footer */}
       <div className={cn('border-t border-hairline p-3', collapsed && 'flex justify-center')}>
         {isAuthenticated ? (
-          <div className={cn('mb-3 flex items-center gap-2 rounded-xl border border-hairline bg-surface-soft p-2', collapsed && 'border-0 bg-transparent p-0')}>
-            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-[11px] font-semibold text-white">
+          <button
+            type="button"
+            onClick={() => router.push('/profile')}
+            aria-label={`Open profile — ${user?.name}`}
+            className={cn(
+              'flex w-full items-center gap-2 rounded-xl border border-hairline bg-surface-soft p-2 text-left',
+              collapsed && 'justify-center border-0 bg-transparent p-0',
+              'transition-colors hover:bg-surface-hover hover:border-brand/30 active:scale-95',
+            )}
+          >
+            <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-[11px] font-semibold text-white relative">
               {user?.initials ?? '?'}
             </span>
             {!collapsed && (
@@ -197,15 +207,10 @@ function SidebarPanel({ onNavigate, variant }: SidebarProps & { variant: 'deskto
                 <span className="truncate text-[10px] text-muted-foreground">{user?.email}</span>
               </span>
             )}
-            <button
-              type="button"
-              onClick={logout}
-              aria-label="Log out"
-              className="grid size-7 shrink-0 place-items-center rounded-lg text-muted-foreground outline-none transition-colors hover:bg-red-500/10 hover:text-red-400 focus-visible:ring-2 focus-visible:ring-brand/50"
-            >
-              <LogOut className="size-4" strokeWidth={1.9} />
-            </button>
-          </div>
+            <span className="ml-auto grid size-7 shrink-0 place-items-center text-muted-foreground/60 transition-transform duration-200 group-hover:rotate-90">
+              <ChevronRight className="size-3" strokeWidth={2} />
+            </span>
+          </button>
         ) : (
           <button
             type="button"
