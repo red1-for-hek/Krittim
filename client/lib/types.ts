@@ -135,17 +135,7 @@ export interface UserProfile {
   provider?: "google" | "github" | "discord" | "email";
 }
 
-export type MockUser = UserProfile;
-
-export const CURRENT_USER: UserProfile = {
-  name: "BNMPC IT Club",
-  email: "core@bnmpc-it.org",
-  handle: "@bnmpc_it",
-  plan: "Pro Enterprise · Krittim AI",
-  initials: "KI",
-};
-
-export const MOCK_USER: UserProfile = CURRENT_USER;
+/* No demo / mock users — every account is created via signup or OAuth. */
 
 /* ------------------------------ persistence ------------------------------- */
 

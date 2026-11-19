@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserRound, Mail, ArrowLeft, Lock, Calendar as CalendarIcon, type LucideIcon } from 'lucide-react';
+import { UserRound, Mail, ArrowLeft, Lock, Calendar as CalendarIcon, Trash2, type LucideIcon } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '@/components/ui/button';
@@ -166,6 +166,32 @@ export default function ProfilePage() {
                 </Button>
                 <Button variant="outline" onClick={handleLogout} className="w-auto">
                   <LogOut className="size-3.5" /> Log out
+                </Button>
+              </div>
+
+              <div className="mt-8 pt-4 border-t border-hairline">
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-red-400/80 mb-3">Danger Zone</h3>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    if (window.confirm('Delete your account? This cannot be undone. All your chats and data will be permanently removed.')) {
+                      // Call delete account endpoint
+                      fetch(`${getApiBaseUrl()}/api/auth/delete-account`, {
+                        method: 'DELETE',
+                        headers: { 'Content-Type': 'application/json' },
+                      }).then(() => {
+                        logout();
+                        router.push('/login');
+                        toast.success('Account deleted');
+                      }).catch(() => {
+                        toast.error('Failed to delete account');
+                      });
+                    }
+                  }}
+                  className="w-auto"
+                >
+                  <Trash2 className="size-3.5" /> Delete account
                 </Button>
               </div>
             </form>

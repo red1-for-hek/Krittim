@@ -1,22 +1,13 @@
 'use client';
 
-import { LogOut, Settings2, UserRound } from 'lucide-react';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
+import { UserRound, LogOut, Settings2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 
 /**
  * ProfileButton — top-right auth surface.
  * Logged out: Log in + Sign up buttons navigate to dedicated pages.
- * Logged in: avatar opening profile menu (profile / settings / sign out).
+ * Logged in: avatar — clicking opens the Profile page directly.
  */
 export function ProfileButton() {
   const { user, isAuthenticated, checking, logout } = useAuthStore();
@@ -53,70 +44,16 @@ export function ProfileButton() {
   }
 
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <button
-            type="button"
-            aria-label={`Account menu — ${user?.name}`}
-            className="group grid size-9 place-items-center rounded-full outline-none transition-transform duration-200 focus-visible:ring-2 focus-visible:ring-brand/60 active:scale-95"
-          />
-        }
-      >
-        <Avatar className="size-8 ring-1 ring-white/10 transition-all duration-200 group-hover:ring-brand/50">
-          {user?.avatarUrl && <AvatarImage src={user.avatarUrl} alt={user?.name ?? ''} />}
-          <AvatarFallback className="bg-gradient-to-br from-brand to-brand-soft text-[11px] font-semibold text-white">
-            {user?.initials}
-          </AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-
-      <DropdownMenuContent
-        align="end"
-        sideOffset={8}
-        className="w-64 overflow-hidden rounded-2xl border-white/10 bg-popover/90 p-0 shadow-[0_24px_80px_-24px_rgba(0,0,0,0.85)] backdrop-blur-xl"
-      >
-        <DropdownMenuLabel className="flex items-center gap-3 border-b border-hairline bg-surface px-3.5 py-3">
-          {user?.avatarUrl ? (
-            <img
-              src={user.avatarUrl}
-              alt=""
-              className="size-9 shrink-0 rounded-full object-cover ring-1 ring-white/10"
-            />
-          ) : (
-            <span className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-xs font-semibold text-white">
-              {user?.initials}
-            </span>
-          )}
-          <span className="flex min-w-0 flex-col">
-            <span className="truncate text-sm font-medium text-foreground">{user?.name}</span>
-            <span className="truncate text-xs text-muted-foreground">{user?.email}</span>
-          </span>
-        </DropdownMenuLabel>
-
-        <div className="p-1.5">
-          <DropdownMenuItem onSelect={() => router.push('/profile')} className="gap-2.5 rounded-lg">
-            <UserRound className="size-4 text-muted-foreground" strokeWidth={1.9} />
-            Profile
-          </DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => router.push('/settings')} className="gap-2.5 rounded-lg">
-            <Settings2 className="size-4 text-muted-foreground" strokeWidth={1.9} />
-            Customize Krittim
-          </DropdownMenuItem>
-          <DropdownMenuSeparator className="mx-1 my-1.5" />
-          <DropdownMenuItem
-            onSelect={() => void logout()}
-            className="gap-2.5 rounded-lg text-muted-foreground hover:text-red-400 focus:text-red-400"
-          >
-            <LogOut className="size-4" strokeWidth={1.9} />
-            Log out
-          </DropdownMenuItem>
-        </div>
-
-        <p className="border-t border-hairline px-3.5 py-2 text-[10px] text-muted-foreground/60">
-          {user?.plan}
-        </p>
-      </DropdownMenuContent>
-    </DropdownMenu>
+    <button
+      type="button"
+      onClick={() => router.push('/profile')}
+      aria-label={`Open profile — ${user?.name}`}
+      className="group relative grid size-9 place-items-center rounded-full outline-none transition-all duration-200 hover:border-brand/40 hover:ring-2 hover:ring-brand/40 focus-visible:ring-2 focus-visible:ring-brand/60 active:scale-95"
+    >
+      <span className="absolute -inset-px rounded-full border border-brand/20 pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity" />
+      <span className="grid size-8 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-[11px] font-semibold text-white relative z-10 transition-all duration-200 group-hover:scale-110">
+        {user?.initials ?? '?'}
+      </span>
+    </button>
   );
 }
