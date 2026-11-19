@@ -1,44 +1,57 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AppShell } from '@/components/layout/AppShell';
-import { useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 
 export default function Home() {
   const router = useRouter();
   const { hydrateSession, isAuthenticated, checking } = useAuthStore();
+  const [ready, setReady] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     const check = async () => {
       await hydrateSession();
-      if (!checking && !isAuthenticated) {
-        router.replace('/login');
-      }
+      if (cancelled) return;
+      setReady(true);
     };
     void check();
-  }, [hydrateSession, isAuthenticated, checking, router]);
+    return () => {
+      cancelled = true;
+    };
+  }, [hydrateSession]);
 
-  if (checking) return null;
-
-  // Opening "/" always starts a fresh composer
   useEffect(() => {
-    if (!isAuthenticated) return;
-    const state = useChatStore.getState();
-    const emptyIds = state.chats
-      .filter((chat) => (state.messagesByChatId[chat.id] ?? []).length === 0)
-      .map((chat) => chat.id);
-    useChatStore.setState((current) => ({
-      chats: current.chats.filter((chat) => !emptyIds.includes(chat.id)),
-      messagesByChatId: Object.fromEntries(
-        Object.entries(current.messagesByChatId).filter(([id]) => !emptyIds.includes(id)),
-      ),
-      activeChatId: null,
-      isStreaming: false,
-      stopRequested: false,
-    }));
-  }, [isAuthenticated]);
+    if (ready && !isAuthenticated) {
+      router.replace('/login');
+    }
+  }, [ready, isAuthenticated, router]);
+
+  // Same shell on server and client during hydration → no mismatch.
+  if (!ready || checking) {
+    return (
+      <div className="flex min-h-dvh w-full items-center justify-center bg-background">
+        <div className="animate-pulse rounded-full bg-brand/10 p-3 text-brand">
+          <svg
+            className="size-6"
+            strokeWidth={1.6}
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0Z" />
+          </svg>
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   return (
     <main className="relative min-h-dvh w-full overflow-hidden">
