@@ -26,9 +26,8 @@ function ChatPageContent() {
     void check();
   }, [hydrateSession, isAuthenticated, checking, router]);
 
-  if (checking || !isAuthenticated) return null;
-
   useEffect(() => {
+    if (checking || !isAuthenticated) return;
     if (!chat) {
       router.replace('/');
       return;
@@ -36,7 +35,9 @@ function ChatPageContent() {
     if (activeChatId !== chat.id) {
       selectChat(chat.id);
     }
-  }, [chat, activeChatId, selectChat, router]);
+  }, [checking, isAuthenticated, chat, activeChatId, selectChat, router]);
+
+  if (checking || !isAuthenticated) return null;
 
   return (
     <main className="relative min-h-dvh w-full overflow-hidden">

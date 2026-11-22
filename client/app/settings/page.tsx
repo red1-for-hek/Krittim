@@ -1,52 +1,70 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import {
-  Moon,
-  Sun,
-  MonitorSmartphone,
-  Brain,
-  Radio,
-  Keyboard,
-  UserRound,
-  Zap,
-  Bell,
-  Trash2,
-  DatabaseZap,
-  LogOut,
   ArrowLeft,
+  Bell,
+  Brain,
+  DatabaseZap,
+  Eraser,
+  FlaskConical,
+  Keyboard,
+  LogOut,
+  MonitorSmartphone,
+  Moon,
+  Palette,
   Settings as SettingsIcon,
+  SlidersHorizontal,
+  Sparkles,
+  Sun,
+  Trash2,
+  UserRound,
+  Radio,
   type LucideIcon,
 } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
+import AnimatedMeshBackground from '@/components/layout/AnimatedMeshBackground';
 import { Button } from '@/components/ui/button';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { Switch } from '@/components/ui/switch';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { RESPONSE_STYLE_OPTIONS, type ResponseStyle } from '@/lib/types';
+import { RESPONSE_STYLE_OPTIONS, type ResponseStyle, type ThemePreference } from '@/lib/types';
 import { useAuthStore } from '@/store/authStore';
 import { useChatStore } from '@/store/chatStore';
+
+type SettingsSectionId = 'appearance' | 'chat' | 'personalize' | 'account' | 'data';
+
+const NAV_ITEMS: Array<{ id: SettingsSectionId; label: string; icon: LucideIcon; description: string }> = [
+  { id: 'appearance', label: 'Appearance', icon: Palette, description: 'Theme, canvas & timestamps' },
+  { id: 'chat', label: 'Chat Behavior', icon: SlidersHorizontal, description: 'Memory, streaming & keys' },
+  { id: 'personalize', label: 'Personalize', icon: Sparkles, description: 'Instructions & response depth' },
+  { id: 'account', label: 'Account', icon: UserRound, description: 'Session & profile details' },
+  { id: 'data', label: 'Data & Storage', icon: DatabaseZap, description: 'Local chats & reset' },
+];
 
 function SectionCard({
   children,
   danger = false,
+  className,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
   danger?: boolean;
+  className?: string;
 }) {
   return (
-    <div
+    <section
       className={cn(
-        'rounded-xl border p-6 transition-colors',
+        'glass-panel rounded-2xl p-5 md:p-6 transition-colors',
         danger
-          ? 'border-red-500/20 bg-red-500/[0.04] hover:border-red-500/35'
-          : 'border-hairline bg-surface hover:bg-surface-soft',
+          ? 'border-destructive/30 bg-destructive/[0.06]'
+          : 'border-hairline',
+        className,
       )}
     >
       {children}
-    </div>
+    </section>
   );
 }
 
@@ -59,12 +77,12 @@ function SettingRow({
   icon: LucideIcon;
   title: string;
   description: string;
-  children?: React.ReactNode;
+  children?: ReactNode;
 }) {
   return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 gap-3">
-        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-hairline bg-surface-soft text-brand">
+    <div className="flex items-start justify-between gap-4 py-3 first:pt-0 last:pb-0">
+      <div className="flex min-w-0 gap-3.5">
+        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl border border-hairline bg-surface-soft text-brand">
           <Icon className="size-4" strokeWidth={1.9} />
         </span>
         <div className="min-w-0">
@@ -77,18 +95,22 @@ function SettingRow({
   );
 }
 
-function ThemeOption({
+function ThemeCard({
   value,
   current,
   onChange,
   label,
+  subtitle,
   icon: Icon,
+  swatchClass,
 }: {
-  value: 'dark' | 'light' | 'system';
-  current: 'dark' | 'light' | 'system';
-  onChange: (v: 'dark' | 'light' | 'system') => void;
+  value: ThemePreference;
+  current: ThemePreference;
+  onChange: (v: ThemePreference) => void;
   label: string;
+  subtitle: string;
   icon: LucideIcon;
+  swatchClass: string;
 }) {
   const active = current === value;
   return (
@@ -96,19 +118,24 @@ function ThemeOption({
       type="button"
       onClick={() => {
         onChange(value);
-        toast.success(`${label} mode applied`, { duration: 1400 });
+        toast.success(`${label} theme applied`, { duration: 1400 });
       }}
       aria-pressed={active}
       className={cn(
-        'flex min-h-[80px] flex-col items-center justify-center gap-2 rounded-xl border px-4 py-4 text-sm font-medium outline-none transition-colors duration-150 focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-[0.97]',
+        'group relative flex flex-col items-start gap-3 rounded-xl border p-3.5 text-left outline-none transition-all duration-150 focus-visible:ring-2 focus-visible:ring-brand/50 active:scale-[0.98]',
         active
-          ? 'border-brand/50 bg-brand/10 text-foreground'
-          : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:text-foreground',
+          ? 'border-brand/55 bg-brand/[0.11] text-foreground shadow-sm'
+          : 'border-hairline bg-surface-soft text-muted-foreground hover:border-brand/30 hover:bg-surface-hover hover:text-foreground',
       )}
     >
-      {active && <span className="absolute -inset-px rounded-xl border border-brand/30 pointer-events-none" />}
-      <Icon className={cn('relative size-5', active ? 'text-brand' : 'opacity-70')} strokeWidth={1.8} />
-      <span className="relative">{label}</span>
+      <div className={cn('h-11 w-full rounded-lg border border-hairline/80 p-2 flex items-end justify-between', swatchClass)}>
+        <span className="h-1.5 w-8 rounded-full bg-emerald-500/75" />
+        <Icon className={cn('size-4', active ? 'text-brand' : 'opacity-75')} strokeWidth={1.9} />
+      </div>
+      <div>
+        <div className="text-sm font-semibold text-foreground">{label}</div>
+        <div className="text-[11px] text-muted-foreground">{subtitle}</div>
+      </div>
     </button>
   );
 }
@@ -138,215 +165,389 @@ export default function SettingsPage() {
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
   const logout = useAuthStore((s) => s.logout);
 
-  const [confirmingClear, setConfirmingClear] = useState(false);
-  const [confirmingReset, setConfirmingReset] = useState(false);
+  const [activeSection, setActiveSection] = useState<SettingsSectionId>('appearance');
+  const [confirmClearOpen, setConfirmClearOpen] = useState(false);
+  const [confirmResetOpen, setConfirmResetOpen] = useState(false);
 
   const flip = (v: boolean, fn: (on: boolean) => void, label: string) => {
-    fn(v === true);
-    toast.success(`${label} ${v ? 'on' : 'off'}`, { duration: 1400 });
+    fn(v);
+    toast.success(`${label} ${v ? 'enabled' : 'disabled'}`, { duration: 1400 });
   };
 
   useEffect(() => {
     setPaletteOpen(false);
   }, [setPaletteOpen]);
 
-  const handleBack = () => {
-    router.back();
-  };
-
   return (
-    <div className="flex h-dvh w-full overflow-hidden">
-      <header className="glass-bar flex h-14 shrink-0 items-center gap-2 px-4 md:px-6 z-20">
-        <button
-          type="button"
-          onClick={handleBack}
-          aria-label="Back"
-          className="grid size-9 shrink-0 place-items-center rounded-xl text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50"
-        >
-          <ArrowLeft className="size-5" strokeWidth={1.9} />
-        </button>
+    <div className="relative flex min-h-dvh w-full flex-col">
+      <AnimatedMeshBackground />
+
+      <header className="glass-bar sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-3 px-4 md:px-6">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            aria-label="Back to chat"
+            className="grid size-9 shrink-0 place-items-center rounded-xl text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50"
+          >
+            <ArrowLeft className="size-5" strokeWidth={1.9} />
+          </button>
+          <div className="flex items-center gap-2">
+            <SettingsIcon className="size-4 text-brand" strokeWidth={1.8} />
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">Settings</h1>
+          </div>
+        </div>
+
         <div className="flex items-center gap-2">
-          <SettingsIcon className="size-4 text-muted-foreground" strokeWidth={1.6} />
-          <h1 className="text-sm font-semibold tracking-tight text-foreground">Settings</h1>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push('/testmodel')}
+            className="whitespace-nowrap rounded-xl text-xs text-muted-foreground hover:text-foreground"
+          >
+            <FlaskConical className="size-3.5 text-brand" />
+            Model Diagnostics
+          </Button>
+          {isAuthenticated && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => router.push('/profile')}
+              className="whitespace-nowrap rounded-xl border-hairline bg-surface text-xs"
+            >
+              <UserRound className="size-3.5" />
+              Profile
+            </Button>
+          )}
         </div>
       </header>
 
-      <div className="flex min-h-0 flex-1 overflow-hidden bg-background">
-        <div className="h-full overflow-y-auto p-6 md:p-8">
-          {/* Appearance */}
-          <SectionCard>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Appearance</h2>
-            <div className="grid grid-cols-3 gap-2">
-              <ThemeOption value="dark" current={theme} onChange={setTheme} label="Dark" icon={Moon} />
-              <ThemeOption value="light" current={theme} onChange={setTheme} label="Light" icon={Sun} />
-              <ThemeOption value="system" current={theme} onChange={setTheme} label="System" icon={MonitorSmartphone} />
-            </div>
-          </SectionCard>
+      <main className="relative z-10 mx-auto flex w-full max-w-5xl flex-1 flex-col gap-6 px-4 py-6 md:flex-row md:gap-8 md:px-8 md:py-10">
+        {/* Category Rail */}
+        <nav aria-label="Settings sections" className="w-full shrink-0 md:w-60">
+          <div className="mb-3 hidden md:block px-2">
+            <h2 className="text-lg font-semibold tracking-tight text-foreground">Preferences</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Customize your workspace, model defaults, and privacy.
+            </p>
+          </div>
 
-          {/* Accent color */}
-          <SectionCard>
-            <div className="flex items-start justify-between gap-4">
-              <div className="flex min-w-0 gap-3">
-                <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-hairline bg-surface-soft text-brand">
-                  <Zap className="size-4" strokeWidth={1.9} />
-                </span>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-foreground">Accent color</p>
-                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                    Deep emerald glow used across buttons and active states.
+          <div className="flex gap-1.5 overflow-x-auto pb-1 md:flex-col md:overflow-visible md:pb-0">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const active = activeSection === item.id;
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => setActiveSection(item.id)}
+                  className={cn(
+                    'flex shrink-0 items-center gap-3 rounded-xl border px-3.5 py-2.5 text-left transition-colors outline-none focus-visible:ring-2 focus-visible:ring-brand/50',
+                    active
+                      ? 'border-brand/35 bg-brand/[0.10] text-foreground'
+                      : 'border-transparent text-muted-foreground hover:bg-surface-soft hover:text-foreground',
+                  )}
+                >
+                  <Icon className={cn('size-4 shrink-0', active ? 'text-brand' : 'text-muted-foreground')} strokeWidth={1.9} />
+                  <div className="min-w-0">
+                    <div className="whitespace-nowrap text-sm font-medium">{item.label}</div>
+                    <div className="hidden text-[11px] text-muted-foreground/75 md:block">
+                      {item.description}
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </nav>
+
+        {/* Settings Content Column */}
+        <div className="min-w-0 flex-1 space-y-5">
+          {activeSection === 'appearance' && (
+            <div className="anim-fade-in space-y-5">
+              <SectionCard>
+                <div className="mb-4">
+                  <h2 className="text-base font-semibold tracking-tight text-foreground">Theme</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Choose between the deep emerald dark canvas, mineral sage light canvas, or system sync.
                   </p>
                 </div>
-              </div>
-              <div className="grid size-10 place-items-center rounded-lg bg-gradient-to-br from-brand to-brand-soft text-sm font-bold text-white">
-                K
-              </div>
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <ThemeCard
+                    value="dark"
+                    current={theme}
+                    onChange={setTheme}
+                    label="Dark"
+                    subtitle="Deep emerald obsidian"
+                    icon={Moon}
+                    swatchClass="bg-[#0b1813]"
+                  />
+                  <ThemeCard
+                    value="light"
+                    current={theme}
+                    onChange={setTheme}
+                    label="Light"
+                    subtitle="Mineral sage glass"
+                    icon={Sun}
+                    swatchClass="bg-[#dfeee5]"
+                  />
+                  <ThemeCard
+                    value="system"
+                    current={theme}
+                    onChange={setTheme}
+                    label="System"
+                    subtitle="Match OS setting"
+                    icon={MonitorSmartphone}
+                    swatchClass="bg-gradient-to-r from-[#0b1813] via-[#1b3a2e] to-[#dfeee5]"
+                  />
+                </div>
+              </SectionCard>
+
+              <SectionCard>
+                <SettingRow
+                  icon={Bell}
+                  title="Message timestamps"
+                  description="Display message creation time underneath user and assistant turns."
+                >
+                  <Switch
+                    checked={showTimestamps}
+                    onCheckedChange={(v) => flip(v === true, setShowTimestamps, 'Timestamps')}
+                    aria-label="Show timestamps"
+                  />
+                </SettingRow>
+              </SectionCard>
             </div>
-          </SectionCard>
+          )}
 
-          {/* Timestamps */}
-          <SectionCard>
-            <SettingRow icon={Bell} title="Timestamps" description="Show message time under each bubble.">
-              <Switch checked={showTimestamps} onCheckedChange={(v) => flip(v === true, setShowTimestamps, 'Timestamps')} aria-label="Show timestamps" />
-            </SettingRow>
-          </SectionCard>
+          {activeSection === 'chat' && (
+            <div className="anim-fade-in space-y-5">
+              <SectionCard className="divide-y divide-hairline">
+                <SettingRow
+                  icon={Brain}
+                  title="AI Memory"
+                  description="Remember preferences and standing context across conversations."
+                >
+                  <Switch
+                    checked={aiMemory}
+                    onCheckedChange={(v) => flip(v === true, setAiMemory, 'AI memory')}
+                    aria-label="Enable AI memory"
+                  />
+                </SettingRow>
+                <SettingRow
+                  icon={Radio}
+                  title="Stream responses"
+                  description="Render tokens progressively as they arrive from the model."
+                >
+                  <Switch
+                    checked={streamResponses}
+                    onCheckedChange={(v) => flip(v === true, setStreamResponses, 'Streaming')}
+                    aria-label="Stream responses"
+                  />
+                </SettingRow>
+                <SettingRow
+                  icon={Keyboard}
+                  title="Enter to send"
+                  description="Press Enter to send messages, and Shift+Enter to insert a newline."
+                >
+                  <Switch
+                    checked={enterToSend}
+                    onCheckedChange={(v) => flip(v === true, setEnterToSend, 'Enter to send')}
+                    aria-label="Enter to send"
+                  />
+                </SettingRow>
+              </SectionCard>
+            </div>
+          )}
 
-          {/* Chat behavior */}
-          <SectionCard>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Chat behavior</h2>
-            <SettingRow icon={Brain} title="AI Memory" description="Remember preferences and context across conversations.">
-              <Switch checked={aiMemory} onCheckedChange={(v) => flip(v === true, setAiMemory, 'AI memory')} aria-label="Enable AI memory" />
-            </SettingRow>
-            <SettingRow icon={Radio} title="Stream responses" description="Render tokens as they arrive. Turn off for full answers at once.">
-              <Switch checked={streamResponses} onCheckedChange={(v) => flip(v === true, setStreamResponses, 'Streaming')} aria-label="Stream responses" />
-            </SettingRow>
-            <SettingRow icon={Keyboard} title="Enter to send" description="Enter sends, Shift+Enter adds a new line.">
-              <Switch checked={enterToSend} onCheckedChange={(v) => flip(v === true, setEnterToSend, 'Enter to send')} aria-label="Enter to send" />
-            </SettingRow>
-          </SectionCard>
-
-          {/* Personalize */}
-          <SectionCard>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Personalize</h2>
-            <div className="space-y-3">
-              <div>
-                <p className="text-sm font-medium text-foreground">Custom instructions</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                  Standing directions Krittim follows in every chat — your role, tone, or rules.
-                </p>
+          {activeSection === 'personalize' && (
+            <div className="anim-fade-in space-y-5">
+              <SectionCard>
+                <div className="mb-3">
+                  <h2 className="text-base font-semibold tracking-tight text-foreground">Custom instructions</h2>
+                  <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                    Standing directions Krittim follows in every chat — your role, preferred stack, or formatting rules.
+                  </p>
+                </div>
                 <textarea
                   value={customInstructions}
                   onChange={(e) => setCustomInstructions(e.target.value)}
                   maxLength={4000}
-                  rows={4}
-                  placeholder="e.g. I'm a backend engineer. Answer with TypeScript, be concise, and always mention trade-offs."
-                  className="w-full resize-y rounded-xl border border-hairline bg-surface px-3 py-2 text-[13px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+                  rows={5}
+                  placeholder="e.g. I'm a backend engineer. Answer with TypeScript, keep explanations direct, and note trade-offs."
+                  className="w-full resize-y rounded-xl border border-hairline bg-surface-soft px-3.5 py-2.5 text-[13px] leading-relaxed text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus-visible:border-brand/50 focus-visible:ring-2 focus-visible:ring-brand/20"
                 />
-                <p className="mt-1 text-right font-mono text-[10px] text-muted-foreground/60">{customInstructions.length}/4000</p>
-              </div>
-            </div>
-          </SectionCard>
+                <div className="mt-1.5 flex items-center justify-between text-[11px] text-muted-foreground">
+                  <span>Saved automatically to this browser</span>
+                  <span className="font-mono tabular-nums">{customInstructions.length}/4000</span>
+                </div>
+              </SectionCard>
 
-          {/* Response length */}
-          <SectionCard>
-            <div className="space-y-2">
-              <p className="text-sm font-medium text-foreground">Response length</p>
-              <div className="grid grid-cols-3 gap-2">
-                {RESPONSE_STYLE_OPTIONS.map((option) => {
-                  const active = responseStyle === option.id;
-                  return (
-                    <button
-                      key={option.id}
-                      type="button"
-                      onClick={() => {
-                        setResponseStyle(option.id as ResponseStyle);
-                        toast.success(`${option.name} responses`, { duration: 1200 });
-                      }}
-                      aria-pressed={active}
-                      className={cn(
-                        'flex flex-col items-center gap-0.5 rounded-xl border px-3 py-4 text-xs font-medium outline-none transition-colors active:scale-[0.97]',
-                        active ? 'border-brand/50 bg-brand/10 text-foreground' : 'border-hairline bg-surface text-muted-foreground hover:border-brand/30 hover:text-foreground',
-                      )}
-                    >
-                      <span>{option.name}</span>
-                      <span className="text-[10px] font-normal text-muted-foreground/70">{option.tagline}</span>
-                    </button>
-                  );
-                })}
-              </div>
+              <SectionCard>
+                <div className="mb-3">
+                  <h2 className="text-base font-semibold tracking-tight text-foreground">Response length</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Set the default verbosity for assistant replies.
+                  </p>
+                </div>
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-3">
+                  {RESPONSE_STYLE_OPTIONS.map((option) => {
+                    const active = responseStyle === option.id;
+                    return (
+                      <button
+                        key={option.id}
+                        type="button"
+                        onClick={() => {
+                          setResponseStyle(option.id as ResponseStyle);
+                          toast.success(`${option.name} responses selected`, { duration: 1200 });
+                        }}
+                        aria-pressed={active}
+                        className={cn(
+                          'flex flex-col items-start gap-1 rounded-xl border px-4 py-3.5 text-left outline-none transition-colors active:scale-[0.98]',
+                          active
+                            ? 'border-brand/55 bg-brand/[0.11] text-foreground'
+                            : 'border-hairline bg-surface-soft text-muted-foreground hover:border-brand/30 hover:text-foreground',
+                        )}
+                      >
+                        <span className="text-sm font-semibold text-foreground">{option.name}</span>
+                        <span className="text-xs text-muted-foreground">{option.tagline}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </SectionCard>
             </div>
-          </SectionCard>
+          )}
 
-          {/* Account */}
-          <SectionCard>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-muted-foreground/70">Account</h2>
-            <div className="flex items-center gap-3">
-              <span className="grid size-10 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-sm font-semibold text-white">
-                {user?.initials ?? '?'}
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-foreground">{user?.name ?? 'Not signed in'}</p>
-                <p className="truncate text-xs text-muted-foreground">{user?.email ?? 'Sign in to sync chats'}</p>
-              </div>
+          {activeSection === 'account' && (
+            <div className="anim-fade-in space-y-5">
+              <SectionCard>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                  <div className="flex items-center gap-3.5 min-w-0">
+                    <span className="grid size-12 shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand to-brand-soft text-base font-semibold text-white">
+                      {user?.initials ?? '?'}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate text-base font-semibold text-foreground">
+                        {user?.name ?? 'Guest Session'}
+                      </p>
+                      <p className="truncate text-xs text-muted-foreground">
+                        {user ? `${user.email} · ${user.plan}` : 'Sign in to sync your profile and threads'}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex shrink-0 items-center gap-2">
+                    {isAuthenticated ? (
+                      <>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => router.push('/profile')}
+                          className="rounded-xl border-hairline bg-surface"
+                        >
+                          Manage profile
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={async () => {
+                            await logout();
+                            toast.success('Logged out');
+                            router.push('/login');
+                          }}
+                          className="rounded-xl text-muted-foreground hover:text-foreground"
+                        >
+                          <LogOut className="size-3.5" /> Log out
+                        </Button>
+                      </>
+                    ) : (
+                      <Button
+                        type="button"
+                        size="sm"
+                        onClick={() => router.push('/login')}
+                        className="rounded-xl bg-brand text-white hover:bg-brand/90"
+                      >
+                        Log in
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </SectionCard>
             </div>
+          )}
 
-            <div className="mt-4">
-              {isAuthenticated ? (
-                <Button variant="ghost" size="sm" onClick={() => { logout(); toast.success('Logged out'); }}>
-                  <LogOut className="size-3.5" /> Log out
-                </Button>
-              ) : (
-                <Button size="sm" onClick={() => router.push('/login')}>
-                  Log in
-                </Button>
-              )}
+          {activeSection === 'data' && (
+            <div className="anim-fade-in space-y-5">
+              <SectionCard danger className="divide-y divide-destructive/15">
+                <SettingRow
+                  icon={Trash2}
+                  title="Clear all chats"
+                  description="Deletes every conversation and message in this workspace. Your groups and preferences stay intact."
+                >
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setConfirmClearOpen(true)}
+                    className="whitespace-nowrap rounded-xl"
+                  >
+                    <Trash2 className="size-3.5" />
+                    Clear chats
+                  </Button>
+                </SettingRow>
+
+                <SettingRow
+                  icon={DatabaseZap}
+                  title="Reset browser storage"
+                  description="Wipes all chats, groups, messages, and local preferences from this browser."
+                >
+                  <Button
+                    type="button"
+                    variant="destructive"
+                    size="sm"
+                    onClick={() => setConfirmResetOpen(true)}
+                    className="whitespace-nowrap rounded-xl"
+                  >
+                    <Eraser className="size-3.5" />
+                    Reset storage
+                  </Button>
+                </SettingRow>
+              </SectionCard>
             </div>
-          </SectionCard>
-
-          {/* Data / Danger zone */}
-          <SectionCard danger>
-            <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-red-400/80">Data</h2>
-            <SettingRow icon={Trash2} title="Clear all chats" description="Removes every message in this session. Cannot be undone.">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Clear all chats"
-                onClick={() => {
-                  if (confirmingClear) { clearAllChats(); setConfirmingClear(false); router.push('/'); }
-                  else { setConfirmingClear(true); setTimeout(() => setConfirmingClear(false), 3000); }
-                }}
-                className={cn('h-9 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300', confirmingClear && 'bg-red-500 text-white hover:bg-red-500 hover:text-white')}
-              >
-                <Trash2 className="size-3.5" strokeWidth={2.2} />
-                {confirmingClear ? 'Tap again to confirm' : 'Clear chats'}
-              </Button>
-            </SettingRow>
-            <SettingRow icon={DatabaseZap} title="Clear local storage" description="Wipes chats, messages and preferences from this browser.">
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label="Clear local storage"
-                onClick={() => {
-                  if (confirmingReset) { resetAllData(); setConfirmingReset(false); router.push('/'); }
-                  else { setConfirmingReset(true); setTimeout(() => setConfirmingReset(false), 3000); }
-                }}
-                className={cn('h-9 gap-1.5 rounded-lg bg-red-500/15 text-xs font-semibold text-red-400 hover:bg-red-500/25 hover:text-red-300', confirmingReset && 'bg-red-500 text-white hover:bg-red-500 hover:text-white')}
-              >
-                <Eraser className="size-3.5" />
-                {confirmingReset ? 'Tap again to confirm' : 'Clear storage'}
-              </Button>
-            </SettingRow>
-          </SectionCard>
+          )}
         </div>
-      </div>
-    </div>
-  );
-}
+      </main>
 
-function Eraser({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M9 6H6a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-4" />
-      <path d="M9 6V3a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v3" />
-    </svg>
+      <ConfirmDialog
+        open={confirmClearOpen}
+        onOpenChange={setConfirmClearOpen}
+        title="Clear all chats?"
+        description="This permanently removes all conversation threads and messages stored in this browser."
+        confirmLabel="Clear all chats"
+        destructive
+        onConfirm={() => {
+          clearAllChats();
+          toast.success('All chats cleared');
+          router.push('/');
+        }}
+      />
+
+      <ConfirmDialog
+        open={confirmResetOpen}
+        onOpenChange={setConfirmResetOpen}
+        title="Reset browser storage?"
+        description="Every chat, group, custom instruction, and theme preference in this browser will be erased."
+        confirmLabel="Reset everything"
+        destructive
+        onConfirm={() => {
+          resetAllData();
+          router.push('/');
+        }}
+      />
+    </div>
   );
 }

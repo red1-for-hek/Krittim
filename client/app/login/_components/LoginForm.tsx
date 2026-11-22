@@ -2,8 +2,10 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Mail, Lock, GitBranch, MessageSquare, Globe } from 'lucide-react';
+import Link from 'next/link';
+import { Mail, Lock, GitBranch, MessageSquare, Globe, Hexagon, Loader2 } from 'lucide-react';
 
+import AnimatedMeshBackground from '@/components/layout/AnimatedMeshBackground';
 import { useAuthStore } from '@/store/authStore';
 
 export function LoginForm() {
@@ -35,56 +37,58 @@ export function LoginForm() {
   };
 
   return (
-    <div className="flex min-h-dvh w-full items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        <div className="mx-auto mb-8 flex max-w-[64px] items-center justify-center rounded-full bg-brand/10 p-3 text-brand">
-          <Lock className="size-6" strokeWidth={1.6} />
+    <div className="relative flex min-h-dvh w-full items-center justify-center px-4 py-10">
+      <AnimatedMeshBackground />
+
+      <div className="glass-panel relative z-10 w-full max-w-md rounded-2xl p-6 shadow-2xl sm:p-8">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-4 grid size-12 place-items-center rounded-2xl bg-gradient-to-br from-brand to-brand-soft text-white shadow-[0_0_24px_-6px_var(--brand)]">
+            <Hexagon className="size-6" strokeWidth={2} />
+          </div>
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Welcome back</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Sign in to your Krittim AI workspace.
+          </p>
         </div>
 
-        <h1 className="mb-1 text-2xl font-semibold tracking-tight text-foreground">Welcome back</h1>
-        <p className="mb-8 text-sm text-muted-foreground">
-          Sign in to your Krittim account to continue.
-        </p>
-
         {/* OAuth options */}
-        <div className="space-y-2 mb-8">
+        <div className="space-y-2.5">
           <button
             type="button"
             onClick={() => handleOAuth('google')}
-            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-hairline bg-surface text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/30 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
+            className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-hairline bg-surface-soft text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/40 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
           >
-            <Globe className="size-5" strokeWidth={2} />
+            <Globe className="size-4 text-brand" strokeWidth={2} />
             Continue with Google
           </button>
           <button
             type="button"
             onClick={() => handleOAuth('github')}
-            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-hairline bg-surface text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/30 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
+            className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-hairline bg-surface-soft text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/40 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
           >
-            <GitBranch className="size-5" strokeWidth={2} />
+            <GitBranch className="size-4 text-brand" strokeWidth={2} />
             Continue with GitHub
           </button>
           <button
             type="button"
             onClick={() => handleOAuth('discord')}
-            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-hairline bg-surface text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/30 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
+            className="flex h-11 w-full items-center justify-center gap-2.5 rounded-xl border border-hairline bg-surface-soft text-sm font-medium text-foreground outline-none transition-colors hover:border-brand/40 hover:bg-surface-hover focus-visible:ring-2 focus-visible:ring-brand/50"
           >
-            <MessageSquare className="size-5" strokeWidth={2} />
+            <MessageSquare className="size-4 text-brand" strokeWidth={2} />
             Continue with Discord
           </button>
         </div>
 
-        <div className="relative mb-8">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t border-hairline"></span>
-          </div>
-          <span className="relative px-4 text-xs font-medium text-muted-foreground">Or continue with email</span>
+        <div className="my-6 flex items-center gap-3">
+          <span className="h-px flex-1 bg-hairline" />
+          <span className="text-xs font-medium text-muted-foreground">Or continue with email</span>
+          <span className="h-px flex-1 bg-hairline" />
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="space-y-2">
+          <div className="space-y-3">
             <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" strokeWidth={1.6} />
+              <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.8} />
               <input
                 type="email"
                 id="email"
@@ -93,11 +97,11 @@ export function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="Email address"
-                className="h-11 w-full rounded-xl border border-hairline bg-surface pl-11 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+                className="h-11 w-full rounded-xl border border-hairline bg-surface-soft pl-11 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus-visible:border-brand/50 focus-visible:ring-2 focus-visible:ring-brand/20"
               />
             </div>
             <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" strokeWidth={1.6} />
+              <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" strokeWidth={1.8} />
               <input
                 type="password"
                 id="password"
@@ -106,29 +110,38 @@ export function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Password"
-                className="h-11 w-full rounded-xl border border-hairline bg-surface pl-11 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/50 focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+                className="h-11 w-full rounded-xl border border-hairline bg-surface-soft pl-11 pr-4 text-sm text-foreground outline-none transition-colors placeholder:text-muted-foreground/55 focus-visible:border-brand/50 focus-visible:ring-2 focus-visible:ring-brand/20"
               />
             </div>
           </div>
 
           {error && (
-            <div className="rounded-lg border border-red-500/30 bg-red-500/[0.04] px-4 py-3 text-sm text-red-400">{error}</div>
+            <div className="rounded-xl border border-destructive/30 bg-destructive/[0.08] px-4 py-3 text-sm text-destructive">
+              {error}
+            </div>
           )}
 
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full flex items-center justify-center gap-2 h-11 rounded-xl border border-transparent bg-gradient-to-br from-brand via-brand to-brand-soft text-sm font-semibold text-white shadow-[0_0_24px_-6px_var(--brand)] transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
+            className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-brand via-brand to-brand-soft text-sm font-semibold text-white shadow-[0_0_24px_-6px_var(--brand)] transition-all hover:brightness-110 active:scale-[0.98] disabled:opacity-60"
           >
-            {isLoading ? <span className="flex items-center gap-1.5"><span className="animate-spin h-4 w-4" /> Signing in…</span> : 'Sign in'}
+            {isLoading ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Signing in…
+              </>
+            ) : (
+              'Sign in'
+            )}
           </button>
         </form>
 
-        <p className="mt-8 text-xs text-center text-muted-foreground">
-          Don't have an account?{' '}
-          <a href="/signup" className="font-medium text-brand hover:underline">
+        <p className="mt-6 text-center text-xs text-muted-foreground">
+          Don&apos;t have an account?{' '}
+          <Link href="/signup" className="font-medium text-brand hover:underline">
             Create an account
-          </a>
+          </Link>
         </p>
       </div>
     </div>

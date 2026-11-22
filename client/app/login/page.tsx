@@ -9,7 +9,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const check = async () => {
-      const { hydrateSession, isAuthenticated } = useAuthStore.getState();
+      const { hydrateSession } = useAuthStore.getState();
       await hydrateSession();
       setChecked(true);
     };

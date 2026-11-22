@@ -2,230 +2,287 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { UserRound, Mail, ArrowLeft, Lock, Calendar as CalendarIcon, Trash2, type LucideIcon } from 'lucide-react';
+import {
+  ArrowLeft,
+  Calendar as CalendarIcon,
+  Loader2,
+  LogOut,
+  Mail,
+  Save,
+  Settings as SettingsIcon,
+  Trash2,
+  UserRound,
+} from 'lucide-react';
 import { toast } from 'sonner';
 
+import AnimatedMeshBackground from '@/components/layout/AnimatedMeshBackground';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { useAuthStore } from '@/store/authStore';
-
-function IconBox({ icon: Icon, className }: { icon: LucideIcon; className?: string }) {
-  return (
-    <span className={cn('mt-0.5 grid size-9 shrink-0 place-items-center rounded-lg border border-hairline bg-surface-soft text-brand', className)}>
-      <Icon className="size-4" strokeWidth={1.9} />
-    </span>
-  );
-}
 
 export default function ProfilePage() {
   const router = useRouter();
-  const { user, isAuthenticated, isLoading, logout } = useAuthStore();
+  const { user, isAuthenticated, checking, hydrateSession, updateProfile, deleteAccount, logout } = useAuthStore();
 
-  const [name, setName] = useState(user?.name ?? '');
-  const [email, setEmail] = useState(user?.email ?? '');
-  const [dob, setDob] = useState<string>('');
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [dobDraft, setDobDraft] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
   const [error, setError] = useState('');
 
-  useEffect(() => {
-    const check = async () => {
-      const { hydrateSession } = useAuthStore.getState();
-      await hydrateSession();
-    };
-    void check();
-  }, []);
+  const name = nameDraft ?? user?.name ?? '';
+  const email = user?.email ?? '';
+  const dob = dobDraft ?? user?.dateOfBirth ?? '';
 
   useEffect(() => {
-    if (user) {
-      setName(user.name);
-      setEmail(user.email);
+    void hydrateSession();
+  }, [hydrateSession]);
+
+  useEffect(() => {
+    if (!checking && !isAuthenticated) {
+      router.replace('/login');
     }
-  }, [user]);
-
-  const handleBack = () => router.back();
+  }, [checking, isAuthenticated, router]);
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     if (!name.trim()) {
-      setError('Name is required.');
+      setError('Full name is required.');
       return;
     }
-    // Note: The current auth API doesn't have a profile update endpoint.
-    // This saves to local state and shows a success toast.
-    // In production, this would PATCH /api/auth/profile.
+    setSaving(true);
     try {
-      const res = await fetch(`${getApiBaseUrl()}/api/auth/profile`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, dateOfBirth: dob }),
-      });
-      if (!res.ok) {
-        throw new Error('Failed to update profile');
-      }
+      await updateProfile({ name: name.trim(), dateOfBirth: dob.trim() || undefined });
+      setNameDraft(null);
+      setDobDraft(null);
       toast.success('Profile updated');
-    } catch {
-      // Fall back to local-only update if endpoint doesn't exist yet
-      toast.success('Profile updated locally');
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to update profile';
+      setError(msg);
+      toast.error(msg);
+    } finally {
+      setSaving(false);
     }
   };
 
   const handleLogout = async () => {
     await logout();
+    toast.success('Logged out');
     router.push('/login');
   };
 
-  if (!isAuthenticated || isLoading) {
+  const handleDeleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await deleteAccount();
+      toast.success('Account deleted');
+      router.push('/login');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete account');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  if (checking || !isAuthenticated) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-background px-4">
-        <div className="max-w-md text-center">
-          <div className="mx-auto mb-4 flex max-w-[48px] items-center justify-center rounded-full bg-brand/10 p-2 text-brand">
-            <UserRound className="size-5" strokeWidth={1.6} />
+      <div className="relative flex min-h-dvh w-full items-center justify-center bg-background px-4">
+        <AnimatedMeshBackground />
+        <div className="glass-panel relative z-10 flex flex-col items-center gap-3 rounded-2xl px-8 py-7 text-center">
+          <Loader2 className="size-6 animate-spin text-brand" />
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Loading profile…</h2>
+            <p className="mt-0.5 text-xs text-muted-foreground">Verifying your session.</p>
           </div>
-          <h2 className="text-lg font-semibold text-foreground">Loading profile…</h2>
-          <p className="text-sm text-muted-foreground">Please wait while we verify your session.</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex h-dvh w-full overflow-hidden">
-      <header className="glass-bar flex h-14 shrink-0 items-center gap-2 px-4 md:px-6 z-20">
-        <button type="button" onClick={handleBack} aria-label="Back" className="grid size-9 shrink-0 place-items-center rounded-xl text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50">
-          <ArrowLeft className="size-5" strokeWidth={1.9} />
-        </button>
-        <div className="flex items-center gap-2">
-          <UserRound className="size-4 text-muted-foreground" strokeWidth={1.6} />
-          <h1 className="text-sm font-semibold tracking-tight text-foreground">Profile</h1>
+    <div className="relative flex min-h-dvh w-full flex-col">
+      <AnimatedMeshBackground />
+
+      <header className="glass-bar sticky top-0 z-20 flex h-14 shrink-0 items-center justify-between gap-2 px-4 md:px-6">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => router.push('/')}
+            aria-label="Back to chat"
+            className="grid size-9 shrink-0 place-items-center rounded-xl text-muted-foreground outline-none transition-colors hover:bg-surface-hover hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/50"
+          >
+            <ArrowLeft className="size-5" strokeWidth={1.9} />
+          </button>
+          <div className="flex items-center gap-2">
+            <UserRound className="size-4 text-brand" strokeWidth={1.8} />
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">Profile</h1>
+          </div>
         </div>
+
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => router.push('/settings')}
+          className="whitespace-nowrap rounded-xl border-hairline bg-surface text-xs"
+        >
+          <SettingsIcon className="size-3.5" />
+          Settings
+        </Button>
       </header>
 
-      <main className="flex min-h-0 flex-1 overflow-y-auto bg-background px-4 py-8 md:px-8 md:py-10">
-        <div className="mx-auto max-w-2xl">
-          <div className="anim-scale-in rounded-2xl border border-hairline bg-surface p-6 md:p-8">
+      <main className="relative z-10 mx-auto w-full max-w-3xl flex-1 px-4 py-6 md:px-8 md:py-10">
+        <div className="space-y-6">
+          {/* Identity Banner */}
+          <section className="glass-panel rounded-2xl p-6 md:p-7">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-center gap-4 min-w-0">
+                <span className="grid size-16 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-brand to-brand-soft text-xl font-semibold text-white shadow-[0_0_24px_-6px_var(--brand)]">
+                  {user?.initials ?? '?'}
+                </span>
+                <div className="min-w-0">
+                  <h2 className="truncate text-xl font-semibold tracking-tight text-foreground">
+                    {user?.name}
+                  </h2>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {user?.handle} · {user?.provider ?? 'email'} · {user?.plan}
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleLogout}
+                className="self-start rounded-xl border-hairline bg-surface sm:self-center"
+              >
+                <LogOut className="size-3.5" />
+                Log out
+              </Button>
+            </div>
+          </section>
+
+          {/* Account Details Form */}
+          <section className="glass-panel rounded-2xl p-6 md:p-7">
             <div className="mb-6">
-              <h2 className="text-lg font-semibold tracking-tight text-foreground">Account details</h2>
-              <p className="mt-1 text-xs text-muted-foreground">Manage your personal information and preferences.</p>
+              <h3 className="text-base font-semibold tracking-tight text-foreground">Account details</h3>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Update your display name and personal preferences.
+              </p>
             </div>
 
             <form onSubmit={handleSave} className="space-y-5">
-              <div className="grid gap-4 md:grid-cols-2">
+              <div className="grid gap-5 md:grid-cols-2">
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <IconBox icon={UserRound} />
+                  <label htmlFor="profile-name" className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <UserRound className="size-3.5 text-brand" strokeWidth={1.9} />
                     Full name
                   </label>
                   <input
+                    id="profile-name"
                     type="text"
                     required
                     value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    className="h-11 w-full rounded-xl border border-hairline bg-surface pl-4 pr-4 text-sm text-foreground outline-none transition-colors focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+                    onChange={(e) => setNameDraft(e.target.value)}
+                    className="h-11 w-full rounded-xl border border-hairline bg-surface-soft px-3.5 text-sm text-foreground outline-none transition-colors focus-visible:border-brand/50 focus-visible:ring-2 focus-visible:ring-brand/20"
                   />
                 </div>
+
                 <div className="space-y-2">
-                  <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-                    <IconBox icon={Mail} />
+                  <label htmlFor="profile-email" className="flex items-center gap-2 text-xs font-medium text-foreground">
+                    <Mail className="size-3.5 text-brand" strokeWidth={1.9} />
                     Email address
                   </label>
                   <input
+                    id="profile-email"
                     type="email"
-                    required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
                     readOnly
-                    className="h-11 w-full rounded-xl border border-hairline bg-surface-soft pl-4 pr-4 text-sm text-muted-foreground outline-none"
+                    className="h-11 w-full cursor-not-allowed rounded-xl border border-hairline bg-surface-soft/60 px-3.5 text-sm text-muted-foreground outline-none"
                   />
-                  <span className="text-[10px] text-muted-foreground/60">Email cannot be changed after signup.</span>
+                  <p className="text-[11px] text-muted-foreground/70">
+                    Email cannot be changed after signup.
+                  </p>
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="flex items-center gap-2 text-sm font-medium text-foreground">
-                  <IconBox icon={CalendarIcon} />
+              <div className="max-w-sm space-y-2">
+                <label htmlFor="profile-dob" className="flex items-center gap-2 text-xs font-medium text-foreground">
+                  <CalendarIcon className="size-3.5 text-brand" strokeWidth={1.9} />
                   Date of birth
                 </label>
                 <input
+                  id="profile-dob"
                   type="date"
                   value={dob}
-                  onChange={(e) => setDob(e.target.value)}
-                  className="h-11 w-full rounded-xl border border-hairline bg-surface pl-4 pr-4 text-sm text-foreground outline-none transition-colors focus-visible:border-brand/40 focus-visible:ring-2 focus-visible:ring-brand/20"
+                  onChange={(e) => setDobDraft(e.target.value)}
+                  className="h-11 w-full rounded-xl border border-hairline bg-surface-soft px-3.5 text-sm text-foreground outline-none transition-colors focus-visible:border-brand/50 focus-visible:ring-2 focus-visible:ring-brand/20"
                 />
-                <span className="text-[10px] text-muted-foreground/60">
-                  We use this to personalize your experience. You can update it anytime.
-                </span>
               </div>
 
               {error && (
-                <div className="rounded-lg border border-red-500/30 bg-red-500/[0.04] px-4 py-3 text-sm text-red-400">{error}</div>
+                <div className="rounded-xl border border-destructive/30 bg-destructive/[0.08] px-4 py-3 text-sm text-destructive">
+                  {error}
+                </div>
               )}
 
-              <div className="mt-2 flex items-center gap-3">
-                <Button type="submit" className="w-auto">
-                  <Save className="size-3.5" /> Save changes
-                </Button>
-                <Button variant="outline" onClick={handleLogout} className="w-auto">
-                  <LogOut className="size-3.5" /> Log out
-                </Button>
-              </div>
-
-              <div className="mt-8 pt-4 border-t border-hairline">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-red-400/80 mb-3">Danger Zone</h3>
+              <div className="flex items-center justify-end gap-3 pt-2">
                 <Button
-                  variant="destructive"
-                  size="sm"
-                  onClick={() => {
-                    if (window.confirm('Delete your account? This cannot be undone. All your chats and data will be permanently removed.')) {
-                      // Call delete account endpoint
-                      fetch(`${getApiBaseUrl()}/api/auth/delete-account`, {
-                        method: 'DELETE',
-                        headers: { 'Content-Type': 'application/json' },
-                      }).then(() => {
-                        logout();
-                        router.push('/login');
-                        toast.success('Account deleted');
-                      }).catch(() => {
-                        toast.error('Failed to delete account');
-                      });
-                    }
-                  }}
-                  className="w-auto"
+                  type="submit"
+                  disabled={saving}
+                  className="rounded-xl bg-gradient-to-br from-brand to-brand-soft px-5 text-white hover:brightness-110"
                 >
-                  <Trash2 className="size-3.5" /> Delete account
+                  {saving ? <Loader2 className="size-3.5 animate-spin" /> : <Save className="size-3.5" />}
+                  {saving ? 'Saving…' : 'Save changes'}
                 </Button>
               </div>
             </form>
+          </section>
 
-            <p className="mt-8 border-t border-hairline pt-4 text-[11px] text-muted-foreground/50 text-center">
-              Krittim AI · built by BNMPC IT Club
-            </p>
-          </div>
+          {/* Danger Zone */}
+          <section className="glass-panel rounded-2xl border-destructive/30 bg-destructive/[0.05] p-6 md:p-7">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-foreground">Delete account</h3>
+                <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+                  Permanently remove your account, saved profile, and all server-side chat history.
+                </p>
+              </div>
+
+              <Button
+                type="button"
+                variant="destructive"
+                size="sm"
+                disabled={deleting}
+                onClick={() => setConfirmDeleteOpen(true)}
+                className="shrink-0 whitespace-nowrap rounded-xl"
+              >
+                {deleting ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                Delete account
+              </Button>
+            </div>
+          </section>
+
+          <p className="text-center text-[11px] text-muted-foreground/60">
+            Krittim AI · built by BNMPC IT Club
+          </p>
         </div>
       </main>
+
+      <ConfirmDialog
+        open={confirmDeleteOpen}
+        onOpenChange={setConfirmDeleteOpen}
+        title="Delete your account?"
+        description="This permanently deletes your Krittim AI account and removes all associated chats and groups. This action cannot be undone."
+        confirmLabel="Delete account"
+        destructive
+        onConfirm={() => {
+          void handleDeleteAccount();
+        }}
+      />
     </div>
-  );
-}
-
-function getApiBaseUrl(): string {
-  return (process.env.NEXT_PUBLIC_API_URL ?? 'https://krittim-server.vercel.app').replace(/\/+$/, '');
-}
-
-function LogOut({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-      <polyline points="16 17 21 12 16 7" />
-      <line x1="21" y1="12" x2="9" y2="12" />
-    </svg>
-  );
-}
-
-function Save({ className }: { className?: string }) {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
-      <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-      <polyline points="17 21 17 13 7 13 7 21" />
-      <polyline points="7 3 7 8 15 8" />
-    </svg>
   );
 }

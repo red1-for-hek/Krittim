@@ -9,8 +9,8 @@ import {
   type AttachmentMeta,
   type Chat,
   type ChatMessage,
+  type Group,
   type ModelId,
-  type Project,
   type ReasoningMode,
   type ResponseStyle,
   type ThemePreference,
@@ -19,12 +19,12 @@ import {
 /* -------------------------------------------------------------------------- */
 /*  Krittim AI — global client state (Zustand + localStorage persistence)      */
 /*                                                                            */
-/*  Single source of truth for: sidebar chrome, projects, multi-chat history   */
+/*  Single source of truth for: sidebar chrome, groups, multi-chat history     */
 /*  (chats + messagesByChatId), the active reasoning model, character-by-      */
 /*  character streaming simulation, theme + settings.                          */
 /*                                                                            */
 /*  Persisted slice (survives refresh): chats · activeChatId ·                 */
-/*  messagesByChatId · model · sidebar · projects · theme · ai toggles.        */
+/*  messagesByChatId · model · sidebar · groups · theme · ai toggles.          */
 /*  Ephemeral (never written to disk): isStreaming · stopRequested ·           */
 /*  settingsOpen · paletteOpen · threadKey.                                    */
 /* -------------------------------------------------------------------------- */
@@ -125,8 +125,8 @@ export interface ChatState {
   paletteOpen: boolean;
   setPaletteOpen: (open: boolean) => void;
 
-  projectsCollapsed: boolean;
-  toggleProjectsCollapsed: () => void;
+  groupsCollapsed: boolean;
+  toggleGroupsCollapsed: () => void;
 
   /** Incremented on every chat switch — lets MessageList replay its entrance animation. */
   threadKey: number;
@@ -148,7 +148,7 @@ export interface ChatState {
   setResponseStyle: (style: ResponseStyle) => void;
 
   /* multi-chat history */
-  projects: Project[];
+  groups: Group[];
   chats: Chat[];
   activeChatId: string | null;
   messagesByChatId: Record<string, ChatMessage[]>;
@@ -156,19 +156,20 @@ export interface ChatState {
   stopRequested: boolean;
 
   selectChat: (id: string) => void;
-  createChat: (projectId?: string | null) => string;
-  startNewChat: () => void;
+  createChat: (groupId?: string | null) => string;
+  startNewChat: (groupId?: string | null) => void;
   renameChat: (id: string, title: string) => void;
+  togglePinChat: (id: string) => void;
   deleteChat: (id: string) => void;
   clearAllChats: () => void;
   /** Danger-zone nuclear option — wipes every chat AND the localStorage snapshot. */
   resetAllData: () => void;
 
-  /* projects (folders) */
-  createProject: (name: string, emoji?: string, color?: string) => string;
-  renameProject: (id: string, name: string) => void;
-  deleteProject: (id: string) => void;
-  assignChatToProject: (chatId: string, projectId: string | null) => void;
+  /* groups (folders) */
+  createGroup: (name: string, emoji?: string, color?: string) => string;
+  renameGroup: (id: string, name: string) => void;
+  deleteGroup: (id: string) => void;
+  assignChatToGroup: (chatId: string, groupId: string | null) => void;
   addMessage: (
     chatId: string,
     message: Omit<ChatMessage, 'id' | 'createdAt'> & Partial<Pick<ChatMessage, 'id' | 'createdAt'>>,
@@ -340,13 +341,13 @@ export const useChatStore = create<ChatState>()(
     paletteOpen: false,
     setPaletteOpen: (paletteOpen) => set({ paletteOpen }),
 
-    projectsCollapsed: true,
-    toggleProjectsCollapsed: () => set((s) => ({ projectsCollapsed: !s.projectsCollapsed })),
+    groupsCollapsed: false,
+    toggleGroupsCollapsed: () => set((s) => ({ groupsCollapsed: !s.groupsCollapsed })),
 
     threadKey: 0,
 
     /* ------------------------------ model & mode ------------------------ */
-     model: 's1_neon',
+    model: 's1_neon',
     setModel: (model) => set({ model }),
     reasoningMode: 'auto',
     setReasoningMode: (reasoningMode) => set({ reasoningMode }),
@@ -362,7 +363,7 @@ export const useChatStore = create<ChatState>()(
     setResponseStyle: (responseStyle) => set({ responseStyle }),
 
     /* ---------------------------- history ------------------------------- */
-    projects: [],
+    groups: [],
     chats: [],
     activeChatId: null,
     messagesByChatId: {},
@@ -380,19 +381,35 @@ export const useChatStore = create<ChatState>()(
       }));
     },
 
-    createChat: (projectId = null) => {
+    createChat: (groupId = null) => {
       cancelInflight();
       const current = get();
       const activeMessages = current.activeChatId ? current.messagesByChatId[current.activeChatId] ?? [] : [];
       if (current.activeChatId && activeMessages.length === 0) {
+        if (groupId !== null) {
+          set((s) => ({
+            chats: s.chats.map((c) => (c.id === current.activeChatId ? { ...c, groupId, updatedAt: Date.now() } : c)),
+          }));
+        }
         return current.activeChatId;
       }
       const id = uid('chat');
       const now = Date.now();
-      const chat: Chat = { id, slug: generateSlug(), title: 'New Chat', projectId, createdAt: now, updatedAt: now };
+      const chat: Chat = { id, slug: generateSlug(), title: 'New Chat', groupId, createdAt: now, updatedAt: now };
       set((s) => ({
-        chats: [chat, ...s.chats.filter((item) => (s.messagesByChatId[item.id] ?? []).length > 0)],
-        messagesByChatId: { ...Object.fromEntries(Object.entries(s.messagesByChatId).filter(([chatKey]) => (s.messagesByChatId[chatKey] ?? []).length > 0)), [id]: [] },
+        chats: [
+          chat,
+          ...s.chats.filter((item) => (s.messagesByChatId[item.id] ?? []).length > 0 || !!item.groupId),
+        ],
+        messagesByChatId: {
+          ...Object.fromEntries(
+            Object.entries(s.messagesByChatId).filter(([chatKey]) => {
+              const found = s.chats.find((c) => c.id === chatKey);
+              return (s.messagesByChatId[chatKey] ?? []).length > 0 || !!found?.groupId;
+            }),
+          ),
+          [id]: [],
+        },
         activeChatId: id,
         isStreaming: false,
         stopRequested: false,
@@ -401,11 +418,21 @@ export const useChatStore = create<ChatState>()(
       return id;
     },
 
-    startNewChat: () => {
+    startNewChat: (groupId = null) => {
       cancelInflight();
+      if (groupId) {
+        const id = get().createChat(groupId);
+        const created = get().chats.find((c) => c.id === id);
+        if (typeof window !== 'undefined' && created) {
+          window.history.pushState({}, '', `/chat/${created.slug}`);
+        }
+        return;
+      }
       set((s) => {
         const emptyIds = new Set(
-          s.chats.filter((chat) => (s.messagesByChatId[chat.id] ?? []).length === 0).map((chat) => chat.id),
+          s.chats
+            .filter((chat) => (s.messagesByChatId[chat.id] ?? []).length === 0 && !chat.groupId)
+            .map((chat) => chat.id),
         );
         return {
           chats: s.chats.filter((chat) => !emptyIds.has(chat.id)),
@@ -430,6 +457,16 @@ export const useChatStore = create<ChatState>()(
         ),
       }));
       toast.success('Chat renamed');
+    },
+
+    togglePinChat: (id) => {
+      const chat = get().chats.find((c) => c.id === id);
+      if (!chat) return;
+      const nextPinned = !chat.pinned;
+      set((s) => ({
+        chats: s.chats.map((c) => (c.id === id ? { ...c, pinned: nextPinned } : c)),
+      }));
+      toast.success(nextPinned ? 'Chat pinned' : 'Chat unpinned', { duration: 1400 });
     },
 
     deleteChat: (id) => {
@@ -483,35 +520,44 @@ export const useChatStore = create<ChatState>()(
       });
     },
 
-    /* ----------------------------- projects ----------------------------- */
+    /* ------------------------------ groups ------------------------------ */
 
-    createProject: (name, emoji = '📁', color = 'from-brand to-brand-soft') => {
-      const id = uid('proj');
+    createGroup: (name, emoji = '📁', color = 'from-brand to-brand-soft') => {
+      const id = uid('grp');
       const now = Date.now();
-      const project: Project = { id, name: name.trim() || 'New Project', emoji, color, createdAt: now, updatedAt: now };
-      set((s) => ({ projects: [...s.projects, project], projectsCollapsed: false }));
-      toast.success('Project created', { description: `“${project.name}” is ready.` });
+      const group: Group = { id, name: name.trim() || 'New Group', emoji, color, createdAt: now, updatedAt: now };
+      set((s) => ({ groups: [...s.groups, group], groupsCollapsed: false }));
+      toast.success('Group created', { description: `“${group.name}” is ready.` });
       return id;
     },
 
-    renameProject: (id, name) => {
+    renameGroup: (id, name) => {
       const trimmed = name.trim();
       if (!trimmed) return;
-      set((s) => ({ projects: s.projects.map((p) => (p.id === id ? { ...p, name: trimmed, updatedAt: Date.now() } : p)) }));
-    },
-
-    deleteProject: (id) => {
-      const project = get().projects.find((p) => p.id === id);
       set((s) => ({
-        projects: s.projects.filter((p) => p.id !== id),
-        // Unassign chats rather than deleting them.
-        chats: s.chats.map((c) => (c.projectId === id ? { ...c, projectId: null } : c)),
+        groups: s.groups.map((g) => (g.id === id ? { ...g, name: trimmed, updatedAt: Date.now() } : g)),
       }));
-      toast.success('Project deleted', { description: project ? `“${project.name}” removed — its chats were kept.` : undefined });
+      toast.success('Group renamed');
     },
 
-    assignChatToProject: (chatId, projectId) => {
-      set((s) => ({ chats: s.chats.map((c) => (c.id === chatId ? { ...c, projectId } : c)) }));
+    deleteGroup: (id) => {
+      const group = get().groups.find((g) => g.id === id);
+      set((s) => ({
+        groups: s.groups.filter((g) => g.id !== id),
+        // Unassign chats rather than deleting them.
+        chats: s.chats.map((c) => (c.groupId === id ? { ...c, groupId: null } : c)),
+      }));
+      toast.success('Group deleted', {
+        description: group ? `“${group.name}” removed — its chats were kept in All Chats.` : undefined,
+      });
+    },
+
+    assignChatToGroup: (chatId, groupId) => {
+      const group = groupId ? get().groups.find((g) => g.id === groupId) : null;
+      set((s) => ({
+        chats: s.chats.map((c) => (c.id === chatId ? { ...c, groupId } : c)),
+      }));
+      toast.success(group ? `Moved to “${group.name}”` : 'Removed from group', { duration: 1500 });
     },
 
     addMessage: (chatId, message) => {
@@ -733,7 +779,28 @@ export const useChatStore = create<ChatState>()(
   },
   {
     name: 'krittim-chat-store',
-    version: 2,
+    version: 3,
+    migrate: (persisted: unknown): Partial<ChatState> => {
+      const state = (persisted ?? {}) as Record<string, unknown>;
+      const legacyProjects = Array.isArray(state.projects) ? (state.projects as Group[]) : undefined;
+      const legacyChats: Chat[] | undefined = Array.isArray(state.chats)
+        ? (state.chats as Array<Chat & { projectId?: string | null }>).map((chat) => ({
+            ...chat,
+            groupId: chat.groupId !== undefined ? chat.groupId : (chat.projectId ?? null),
+          }))
+        : undefined;
+      return {
+        ...(state as Partial<ChatState>),
+        groups: Array.isArray(state.groups) ? (state.groups as Group[]) : (legacyProjects ?? []),
+        groupsCollapsed:
+          typeof state.groupsCollapsed === 'boolean'
+            ? state.groupsCollapsed
+            : typeof state.projectsCollapsed === 'boolean'
+              ? state.projectsCollapsed
+              : false,
+        ...(legacyChats ? { chats: legacyChats } : {}),
+      };
+    },
     // Whitelist — ephemeral chrome (streams, modals, threadKey) never hits localStorage.
     partialize: (state) =>
       Object.fromEntries(PERSISTED_STATE_KEYS.map((key) => [key, state[key]])) as Partial<ChatState>,

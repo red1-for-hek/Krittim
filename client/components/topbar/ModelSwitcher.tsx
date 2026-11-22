@@ -79,7 +79,7 @@ export function ModelSwitcher() {
 
         <DropdownMenuContent
           align="end"
-          className="w-80 overflow-hidden rounded-2xl border-white/10 bg-popover/95 p-1.5 shadow-[0_20px_60px_-20px_rgba(0,0,0,0.8)] backdrop-blur-xl"
+          className="w-80 overflow-hidden rounded-2xl border border-hairline bg-popover p-1.5 shadow-xl backdrop-blur-xl"
         >
           <div className="px-2.5 pb-1 pt-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground/60">
             Intelligence Engine
@@ -103,8 +103,8 @@ export function ModelSwitcher() {
                 <div className="flex min-w-0 flex-col gap-0.5">
                   <span className="flex flex-wrap items-center gap-2 text-sm font-medium">
                     {m.name}
-                    <span className="rounded-full border border-white/[0.08] bg-surface-soft px-1.5 py-px text-[10px] font-normal text-muted-foreground">
-                      {m.tagline}
+                    <span className="font-mono text-[10px] font-normal text-muted-foreground">
+                      · {m.tagline}
                     </span>
                   </span>
                   <span className="text-xs leading-snug text-muted-foreground">{m.description}</span>
@@ -125,7 +125,7 @@ export function ModelSwitcher() {
       </DropdownMenu>
 
       <Dialog open={confirmOpen} onOpenChange={setConfirmOpen}>
-        <DialogContent className="sm:max-w-[340px] rounded-2xl border-white/10 bg-popover/95 backdrop-blur-xl">
+        <DialogContent className="sm:max-w-[340px] rounded-2xl border border-hairline bg-popover backdrop-blur-xl">
           <DialogHeader>
             <DialogTitle>Switch to {active.name}</DialogTitle>
             <DialogDescription>

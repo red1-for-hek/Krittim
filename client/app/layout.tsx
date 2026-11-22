@@ -1,18 +1,16 @@
 import type { Metadata, Viewport } from "next";
-import "@fontsource/dm-sans/400.css";
-import "@fontsource/dm-sans/500.css";
-import "@fontsource/dm-sans/600.css";
-import "@fontsource/dm-sans/700.css";
-import "@fontsource/playfair-display/400.css";
-import "@fontsource/playfair-display/400-italic.css";
-import "@fontsource/playfair-display/500.css";
-import "@fontsource/playfair-display/600.css";
-import "@fontsource/newsreader/400.css";
-import "@fontsource/newsreader/500.css";
-import "@fontsource/newsreader/400-italic.css";
-import "@fontsource/newsreader/500-italic.css";
-import "@fontsource-variable/geist-mono";
+import "@fontsource/plus-jakarta-sans/400.css";
+import "@fontsource/plus-jakarta-sans/500.css";
+import "@fontsource/plus-jakarta-sans/600.css";
+import "@fontsource/plus-jakarta-sans/700.css";
+import "@fontsource/lora/400.css";
+import "@fontsource/lora/500.css";
+import "@fontsource/lora/600.css";
+import "@fontsource/lora/400-italic.css";
+import "@fontsource/jetbrains-mono/400.css";
+import "@fontsource/jetbrains-mono/500.css";
 import "./globals.css";
+import { ThemeSync } from "@/components/layout/ThemeSync";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://krittim-client.vercel.app"),
@@ -50,8 +48,8 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: dark)", color: "#09090b" },
-    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#09120e" },
+    { media: "(prefers-color-scheme: light)", color: "#e8f3ec" },
   ],
   width: "device-width",
   initialScale: 1,
@@ -66,9 +64,7 @@ const THEME_BOOTSTRAP = `(function(){try{var d=document.documentElement;var t=lo
 
 /**
  * RootLayout — Server Component
- * Owns metadata, the anti-flash theme script and the html/body shell only.
- * Fonts are self-hosted via @fontsource (imported above) so builds never depend
- * on an external Google Fonts fetch — faster, private, and offline-safe.
+ * Owns metadata, the anti-flash theme script, font imports, and ThemeSync.
  */
 export default function RootLayout({
   children,
@@ -78,13 +74,13 @@ export default function RootLayout({
   return (
     <html lang="en" className="dark" suppressHydrationWarning>
       <head>
-        {/* Blocking, inline, safe — Next allows string children for scripts like this. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body
         suppressHydrationWarning
         className="min-h-dvh bg-background font-sans text-foreground antialiased"
       >
+        <ThemeSync />
         {children}
       </body>
     </html>

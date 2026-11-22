@@ -2,6 +2,8 @@ import { Router, type Response } from 'express';
 import { z } from 'zod';
 import { Chat } from '../models/Chat.js';
 import { Message } from '../models/Message.js';
+import { isDbConnected } from '../lib/db.js';
+import { memId, memoryStore } from '../lib/memoryStore.js';
 import { requireAuth, type AuthRequest } from '../middleware/auth.js';
 import {
   streamCompletion,
@@ -13,7 +15,7 @@ import {
 } from '../ai/proxy.js';
 import { research, needsSearch } from '../ai/search.js';
 
-const router = Router();
+const router: Router = Router();
 router.use(requireAuth);
 
 /* ------------------------------ limits ---------------------------------- */
@@ -45,22 +47,11 @@ function send(res: Response, event: unknown): void {
   res.write(`data: ${JSON.stringify(event)}\n\n`);
 }
 
-/**
- * POST /api/ai/stream
- *
- * SSE events:
- *   {"type":"status","stage":"searching|reading|synthesizing|thinking","detail"?:string}
- *   {"type":"sources","sources":[{index,title,url,snippet}]}
- *   {"type":"chunk","content":"…"}
- *   {"type":"image","url":"…"}
- *   {"type":"done","provider":"…","modelId":"…"}
- *   {"type":"error","message":"…"}
- *   data: [DONE]
- */
 router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> => {
   const parsed = streamSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
   const { slug, modelId, reasoningMode, message, hasImage, webSearch, mode, regenerate, customInstructions, responseStyle, attachments } = parsed.data;
+  const dbOnline = isDbConnected();
 
   // ---- upload limits (server-enforced) ----
   if (attachments && attachments.length > 0) {
@@ -71,45 +62,103 @@ router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> =>
     }
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
-    const userChats = await Chat.find({ userId: req.userId }).select('_id').lean();
-    const uploadsToday = await Message.countDocuments({
-      role: 'user',
-      chatId: { $in: userChats.map((c) => c._id) },
-      createdAt: { $gte: startOfDay },
-      'attachments.0': { $exists: true },
-    });
+    let uploadsToday = 0;
+    if (dbOnline) {
+      const userChats = await Chat.find({ userId: req.userId }).select('_id').lean();
+      uploadsToday = await Message.countDocuments({
+        role: 'user',
+        chatId: { $in: userChats.map((c) => c._id) },
+        createdAt: { $gte: startOfDay },
+        'attachments.0': { $exists: true },
+      });
+    } else {
+      const userChatIds = [...memoryStore.chats.values()]
+        .filter((c) => c.userId === req.userId)
+        .map((c) => c._id);
+      for (const cid of userChatIds) {
+        const msgs = memoryStore.messages.get(cid) ?? [];
+        uploadsToday += msgs.filter(
+          (m) => m.role === 'user' && m.createdAt >= startOfDay && m.attachments.length > 0,
+        ).length;
+      }
+    }
     if (uploadsToday >= MAX_ATTACHMENTS_PER_DAY) {
       res.status(429).json({ error: `Daily upload limit reached (${MAX_ATTACHMENTS_PER_DAY}/day on the free plan).` });
       return;
     }
   }
 
-  let chat = await Chat.findOne({ slug, userId: req.userId });
-  if (!chat) {
-    const existingChat = await Chat.findOne({ slug }).select({ userId: 1 }).lean();
-    if (existingChat) { res.status(404).json({ error: 'Chat not found' }); return; }
-    chat = await Chat.create({ slug, userId: req.userId, title: 'New Chat', modelId, reasoningMode });
-  }
+  let chatIdStr: string;
+  let contextMessages: ChatMessage[] = [];
 
-  if (!regenerate) {
-    await Message.create({
-      chatId: chat._id,
-      role: 'user',
-      content: message,
-      attachments: attachments ?? [],
-    });
-  }
+  if (dbOnline) {
+    let chat = await Chat.findOne({ slug, userId: req.userId });
+    if (!chat) {
+      const existingChat = await Chat.findOne({ slug }).select({ userId: 1 }).lean();
+      if (existingChat) { res.status(404).json({ error: 'Chat not found' }); return; }
+      chat = await Chat.create({ slug, userId: req.userId, title: 'New Chat', modelId, reasoningMode });
+    }
+    chatIdStr = chat._id.toString();
 
-  if (chat.title === 'New Chat') {
-    const title = message.length > 50 ? `${message.slice(0, 50).trimEnd()}…` : message;
-    await Chat.findByIdAndUpdate(chat._id, { title, modelId, reasoningMode });
+    if (!regenerate) {
+      await Message.create({
+        chatId: chat._id,
+        role: 'user',
+        content: message,
+        attachments: attachments ?? [],
+      });
+    }
+
+    if (chat.title === 'New Chat') {
+      const title = message.length > 50 ? `${message.slice(0, 50).trimEnd()}…` : message;
+      await Chat.findByIdAndUpdate(chat._id, { title, modelId, reasoningMode });
+    } else {
+      await Chat.findByIdAndUpdate(chat._id, { modelId, reasoningMode, updatedAt: new Date() });
+    }
+
+    const history = await Message.find({ chatId: chat._id }).sort({ createdAt: -1 }).limit(20).lean();
+    contextMessages = history.reverse().map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
   } else {
-    await Chat.findByIdAndUpdate(chat._id, { modelId, reasoningMode, updatedAt: new Date() });
+    let chat = memoryStore.chats.get(slug);
+    if (!chat) {
+      const now = new Date();
+      chat = {
+        _id: memId(),
+        slug,
+        userId: req.userId!,
+        title: 'New Chat',
+        modelId,
+        reasoningMode,
+        pinned: false,
+        createdAt: now,
+        updatedAt: now,
+      };
+      memoryStore.chats.set(slug, chat);
+    } else if (chat.userId !== req.userId) {
+      res.status(404).json({ error: 'Chat not found' });
+      return;
+    }
+    chatIdStr = chat._id;
+    const msgs = memoryStore.messages.get(chatIdStr) ?? [];
+    if (!regenerate) {
+      msgs.push({
+        _id: memId(),
+        chatId: chatIdStr,
+        role: 'user',
+        content: message,
+        attachments: attachments ?? [],
+        createdAt: new Date(),
+      });
+      memoryStore.messages.set(chatIdStr, msgs);
+    }
+    if (chat.title === 'New Chat') {
+      chat.title = message.length > 50 ? `${message.slice(0, 50).trimEnd()}…` : message;
+    }
+    chat.modelId = modelId;
+    chat.reasoningMode = reasoningMode;
+    chat.updatedAt = new Date();
+    contextMessages = msgs.slice(-20).map((m) => ({ role: m.role, content: m.content }));
   }
-
-  // Last 20 messages for context
-  const history = await Message.find({ chatId: chat._id }).sort({ createdAt: -1 }).limit(20).lean();
-  const contextMessages: ChatMessage[] = history.reverse().map((m) => ({ role: m.role as 'user' | 'assistant', content: m.content }));
 
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
@@ -127,12 +176,26 @@ router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> =>
       send(res, { type: 'image', url: imageUrl });
       send(res, { type: 'done', provider: 'xkiro-image', modelId: 'image_gen' });
       res.write('data: [DONE]\n\n');
-      await Message.create({
-        chatId: chat._id,
-        role: 'assistant',
-        content: `![generated image](${imageUrl})`,
-        modelId: 'image_gen',
-      });
+      if (dbOnline) {
+        await Message.create({
+          chatId: chatIdStr,
+          role: 'assistant',
+          content: `![generated image](${imageUrl})`,
+          modelId: 'image_gen',
+        });
+      } else {
+        const msgs = memoryStore.messages.get(chatIdStr) ?? [];
+        msgs.push({
+          _id: memId(),
+          chatId: chatIdStr,
+          role: 'assistant',
+          content: `![generated image](${imageUrl})`,
+          modelId: 'image_gen',
+          attachments: [],
+          createdAt: new Date(),
+        });
+        memoryStore.messages.set(chatIdStr, msgs);
+      }
     } catch (err) {
       send(res, { type: 'error', message: err instanceof Error ? err.message : 'Image generation failed' });
       res.write('data: [DONE]\n\n');
@@ -189,14 +252,30 @@ router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> =>
       },
       streamOpts,
     );
-    await Message.create({
-      chatId: chat._id,
-      role: 'assistant',
-      content: fullContent,
-      modelId,
-      reasoningMode,
-      sources: sources.length ? sources : undefined,
-    });
+    if (dbOnline) {
+      await Message.create({
+        chatId: chatIdStr,
+        role: 'assistant',
+        content: fullContent,
+        modelId,
+        reasoningMode,
+        sources: sources.length ? sources : undefined,
+      });
+    } else {
+      const msgs = memoryStore.messages.get(chatIdStr) ?? [];
+      msgs.push({
+        _id: memId(),
+        chatId: chatIdStr,
+        role: 'assistant',
+        content: fullContent,
+        modelId,
+        reasoningMode,
+        attachments: [],
+        sources: sources.length ? sources : undefined,
+        createdAt: new Date(),
+      });
+      memoryStore.messages.set(chatIdStr, msgs);
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'All providers failed';
     send(res, { type: 'error', message: msg });
@@ -206,14 +285,26 @@ router.post('/stream', async (req: AuthRequest, res: Response): Promise<void> =>
   }
 });
 
-/**
- * POST /api/ai/image
- * Body: { slug, prompt }  →  { imageContent }
- */
 router.post('/image', async (req: AuthRequest, res: Response): Promise<void> => {
   const parsed = z.object({ slug: z.string().min(1), prompt: z.string().min(1).max(2000) }).safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: parsed.error.flatten() }); return; }
   const { slug, prompt } = parsed.data;
+
+  if (!isDbConnected()) {
+    const chat = memoryStore.chats.get(slug);
+    if (!chat || chat.userId !== req.userId) { res.status(404).json({ error: 'Chat not found' }); return; }
+    const msgs = memoryStore.messages.get(chat._id) ?? [];
+    msgs.push({ _id: memId(), chatId: chat._id, role: 'user', content: prompt, attachments: [], createdAt: new Date() });
+    try {
+      const imageContent = await generateImage(prompt);
+      msgs.push({ _id: memId(), chatId: chat._id, role: 'assistant', content: `![generated image](${imageContent})`, modelId: 'image_gen', attachments: [], createdAt: new Date() });
+      memoryStore.messages.set(chat._id, msgs);
+      res.json({ imageContent });
+    } catch (err) {
+      res.status(502).json({ error: err instanceof Error ? err.message : 'Image generation failed' });
+    }
+    return;
+  }
 
   const chat = await Chat.findOne({ slug, userId: req.userId });
   if (!chat) { res.status(404).json({ error: 'Chat not found' }); return; }

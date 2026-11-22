@@ -143,9 +143,7 @@ export function CommandPalette() {
     return actions.filter((a) => fuzzyMatch(q, a.label) || fuzzyMatch(q, a.keywords));
   }, [actions, query]);
 
-  useEffect(() => {
-    setActiveIndex((i) => Math.min(i, Math.max(filtered.length - 1, 0)));
-  }, [filtered.length]);
+  const clampedIndex = Math.min(activeIndex, Math.max(filtered.length - 1, 0));
 
   const runAction = (action: PaletteAction) => {
     action.run();
@@ -161,19 +159,19 @@ export function CommandPalette() {
     if (!filtered.length) return;
     if (e.key === 'ArrowDown' || (e.ctrlKey && e.key === 'n')) {
       e.preventDefault();
-      setActiveIndex((i) => (i + 1) % filtered.length);
+      setActiveIndex((clampedIndex + 1) % filtered.length);
     } else if (e.key === 'ArrowUp' || (e.ctrlKey && e.key === 'p')) {
       e.preventDefault();
-      setActiveIndex((i) => (i - 1 + filtered.length) % filtered.length);
+      setActiveIndex((clampedIndex - 1 + filtered.length) % filtered.length);
     } else if (e.key === 'Enter') {
       e.preventDefault();
-      runAction(filtered[activeIndex] ?? filtered[0]);
+      runAction(filtered[clampedIndex] ?? filtered[0]);
     }
   };
 
   useEffect(() => {
-    listRef.current?.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`)?.scrollIntoView({ block: 'nearest' });
-  }, [activeIndex]);
+    listRef.current?.querySelector<HTMLElement>(`[data-index="${clampedIndex}"]`)?.scrollIntoView({ block: 'nearest' });
+  }, [clampedIndex]);
 
   const rendered = useMemo(() => {
     const groups: Array<{ label: PaletteAction['group']; items: Array<{ action: PaletteAction; index: number }> }> = [];
@@ -197,9 +195,9 @@ export function CommandPalette() {
       aria-modal="true"
       aria-label="Command palette"
     >
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={close} />
+      <div className="absolute inset-0 bg-black/45 dark:bg-black/65 backdrop-blur-md" onClick={close} />
 
-      <div className="anim-scale-in glass-panel relative w-full max-w-xl overflow-hidden rounded-2xl border-white/10">
+      <div className="anim-scale-in glass-panel relative w-full max-w-xl overflow-hidden rounded-2xl border-hairline shadow-2xl">
         <div className="flex items-center gap-3 border-b border-hairline px-4">
           <Search className="size-4 shrink-0 text-muted-foreground" strokeWidth={1.9} />
           <input
@@ -213,7 +211,7 @@ export function CommandPalette() {
             autoComplete="off"
             spellCheck={false}
           />
-          <kbd className="hidden shrink-0 rounded-md border border-white/10 bg-surface-soft px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:block">
+          <kbd className="hidden shrink-0 rounded-md border border-hairline bg-surface-soft px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground sm:block">
             Esc
           </kbd>
         </div>
@@ -234,7 +232,7 @@ export function CommandPalette() {
                 <ul>
                   {group.items.map(({ action, index }) => {
                     const Icon = action.icon;
-                    const isActive = index === activeIndex;
+                    const isActive = index === clampedIndex;
                     return (
                       <li key={action.id} data-index={index}>
                         <button

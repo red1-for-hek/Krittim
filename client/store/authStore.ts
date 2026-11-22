@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import type { UserProfile } from '@/lib/types';
 
 export const getApiBaseUrl = (): string =>
-  (process.env.NEXT_PUBLIC_API_URL ?? 'https://krittim-server.vercel.app').replace(/\/$/, '');
+  (process.env.NEXT_PUBLIC_API_URL ?? '').replace(/\/$/, '');
 
 const ACCESS_KEY = 'krittim-access-token';
 const REFRESH_KEY = 'krittim-refresh-token';
@@ -84,6 +84,7 @@ function toProfile(user: {
   email: string;
   plan?: Plan;
   avatarUrl?: string;
+  dateOfBirth?: string;
   provider?: UserProfile['provider'];
 }): UserProfile {
   const initials =
@@ -101,6 +102,7 @@ function toProfile(user: {
     plan: PLAN_LABEL[user.plan ?? 'free'] ?? PLAN_LABEL.free,
     initials,
     avatarUrl: user.avatarUrl,
+    dateOfBirth: user.dateOfBirth,
     provider: user.provider,
   };
 }
@@ -139,6 +141,8 @@ interface AuthState {
   /** Validate any stored token and hydrate the user on app start. */
   hydrateSession: () => Promise<void>;
 
+  updateProfile: (payload: { name: string; dateOfBirth?: string }) => Promise<void>;
+  deleteAccount: () => Promise<void>;
   logout: () => Promise<void>;
   setUser: (user: UserProfile | null) => void;
 }
@@ -157,8 +161,6 @@ export const useAuthStore = create<AuthState>()(
       closeAuthModal: () => set({ authModalOpen: false }),
 
       loginWithProvider: (provider) => {
-        // Full-page redirect — the server drives the provider dance and bounces
-        // the user back to /auth/callback with a fresh JWT pair.
         window.location.assign(`${getApiBaseUrl()}/api/auth/oauth/${provider}`);
       },
 
@@ -218,8 +220,6 @@ export const useAuthStore = create<AuthState>()(
         expireSession();
         set({ checking: false, authModalOpen: true, authMode: 'login' });
         if (message) {
-          // Surface a readable reason without leaking internals.
-          // eslint-disable-next-line no-console
           console.warn('[auth] oauth error:', message);
         }
       },
@@ -237,6 +237,29 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           set({ checking: false });
         }
+      },
+
+      updateProfile: async (payload) => {
+        const response = await apiFetch('/api/auth/profile', {
+          method: 'PATCH',
+          body: JSON.stringify(payload),
+        });
+        const data = await response.json().catch(() => ({})) as { user?: Parameters<typeof toProfile>[0]; error?: string };
+        if (!response.ok || !data.user) {
+          throw new Error(typeof data.error === 'string' ? data.error : 'Failed to update profile');
+        }
+        set({ user: toProfile(data.user), isAuthenticated: true });
+      },
+
+      deleteAccount: async () => {
+        const response = await apiFetch('/api/auth/delete-account', {
+          method: 'DELETE',
+        });
+        if (!response.ok) {
+          const data = await response.json().catch(() => ({})) as { error?: string };
+          throw new Error(typeof data.error === 'string' ? data.error : 'Failed to delete account');
+        }
+        expireSession();
       },
 
       logout: async () => {

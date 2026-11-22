@@ -1,6 +1,5 @@
 'use client';
 
-import { memo } from 'react';
 import { ArrowRight, Braces, Rocket, ShieldCheck, Waypoints } from 'lucide-react';
 
 import { useChatStore } from '@/store/chatStore';

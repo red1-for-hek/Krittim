@@ -36,21 +36,21 @@ export function TopBar() {
       </div>
 
       <div className="flex min-w-0 flex-1 items-center gap-2.5 overflow-hidden">
-        <div key={activeChat?.id ?? 'none'} className="anim-fade-in flex min-w-0 items-center gap-2.5">
-          <MessagesSquare className="size-4 shrink-0 text-muted-foreground/60" strokeWidth={1.8} />
-          <h1 className="truncate text-sm font-medium tracking-tight text-foreground">
+        <div key={activeChat?.id ?? 'none'} className="anim-fade-in flex min-w-0 items-center gap-2">
+          <MessagesSquare className="size-4 shrink-0 text-muted-foreground/65" strokeWidth={1.8} />
+          <h1 className="truncate text-sm font-semibold tracking-tight text-foreground">
             {activeChat?.title ?? 'Krittim AI'}
           </h1>
         </div>
 
         {messageCount > 0 && (
-          <span className="hidden shrink-0 rounded-full border border-hairline bg-surface-soft px-2 py-0.5 font-mono text-[10px] text-muted-foreground/70 sm:block">
-            {messageCount} msg{messageCount === 1 ? '' : 's'}
+          <span className="hidden shrink-0 font-mono text-[11px] tabular-nums text-muted-foreground/75 sm:inline">
+            · {messageCount} msg{messageCount === 1 ? '' : 's'}
           </span>
         )}
 
         {isStreaming && (
-          <span className="anim-fade-in flex shrink-0 items-center gap-1.5 rounded-full border border-brand/25 bg-brand/10 px-2.5 py-0.5 text-[10px] font-medium text-brand-soft">
+          <span className="anim-fade-in flex shrink-0 items-center gap-1.5 text-[11px] font-medium text-brand">
             <span className="pulse-dot size-1.5 rounded-full bg-brand shadow-[0_0_8px_oklch(0.62_0.18_155/90%)]" />
             streaming
           </span>

@@ -156,7 +156,7 @@ export function SettingsModal() {
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="glass-panel max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-2xl border-white/10">
+      <DialogContent className="glass-panel max-h-[85dvh] w-full max-w-lg overflow-y-auto rounded-2xl border-hairline">
         <div className="anim-scale-in flex flex-col gap-5">
           <DialogHeader className="space-y-1 text-left">
             <DialogTitle className="font-sans text-xl font-semibold tracking-tight text-foreground">

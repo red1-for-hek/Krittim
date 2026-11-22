@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { Toaster } from 'sonner';
 import { usePathname } from 'next/navigation';
 
 import { ChatInput } from '@/components/chat/ChatInput';
@@ -14,7 +13,7 @@ import { MobileSidebar, Sidebar } from '@/components/ui/Sidebar';
 import { Sheet, SheetContent } from '@/components/ui/sheet';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/useIsMobile';
-import { applyThemeEffect, selectActiveMessages, useChatStore } from '@/store/chatStore';
+import { selectActiveMessages, useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 
 export function AppShell() {
@@ -34,15 +33,14 @@ export function AppShell() {
   const messages = useChatStore(selectActiveMessages);
   const hasThread = activeChatId !== null && messages.length > 0;
 
-  useEffect(() => applyThemeEffect(), []);
   useEffect(() => {
     void hydrateSession();
   }, [hydrateSession]);
 
-  // Auth gate: redirect to login if not authenticated and not on auth pages
   useEffect(() => {
-    if (!checking && !isAuthenticated && !pathname.startsWith('/login') && !pathname.startsWith('/signup') && !pathname.startsWith('/auth')) {
-      // Only redirect on chat routes; home/settings/profile handled by page-level guards
+    const currentPath = pathname ?? '';
+    if (!checking && !isAuthenticated && !currentPath.startsWith('/login') && !currentPath.startsWith('/signup') && !currentPath.startsWith('/auth')) {
+      // Page-level auth guards handle redirects
     }
   }, [checking, isAuthenticated, pathname]);
 
@@ -109,17 +107,6 @@ export function AppShell() {
       </div>
 
       <CommandPalette />
-
-      <Toaster
-        position="bottom-right"
-        toastOptions={{
-          className:
-            '!rounded-xl !border !border-white/10 !bg-[oklch(0.19_0.008_265/92%)] !backdrop-blur-xl !text-zinc-100 !shadow-[0_20px_60px_-20px_black]',
-          duration: 2600,
-        }}
-        closeButton
-        richColors={false}
-      />
     </TooltipProvider>
   );
 }

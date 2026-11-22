@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 
-const ACCESS_SECRET = process.env.JWT_SECRET!;
-const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET!;
+const ACCESS_SECRET = process.env.JWT_SECRET || 'krittim-dev-access-secret';
+const REFRESH_SECRET = process.env.JWT_REFRESH_SECRET || 'krittim-dev-refresh-secret';
 const ACCESS_EXP = process.env.JWT_EXPIRES_IN ?? '15m';
 const REFRESH_EXP = process.env.JWT_REFRESH_EXPIRES_IN ?? '30d';
 

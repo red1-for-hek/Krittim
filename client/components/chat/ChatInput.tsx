@@ -214,10 +214,10 @@ export function ChatInput({ centered = false }: ChatInputProps) {
         {/* composer frame */}
         <div
           className={cn(
-            'composer-glow relative rounded-2xl border border-white/10 bg-popover/80 backdrop-blur-2xl',
+            'composer-glow relative rounded-2xl border border-hairline bg-popover/90 backdrop-blur-2xl',
             'transition-colors duration-200',
-            isStreaming && 'border-brand/40',
-            centered && 'border-white/15 shadow-[0_25px_60px_-15px_rgba(0,0,0,0.85)] ring-1 ring-white/5',
+            isStreaming && 'border-brand/45',
+            centered && 'shadow-[0_22px_55px_-18px_rgba(0,0,0,0.35)] dark:shadow-[0_25px_60px_-15px_rgba(0,0,0,0.75)]',
           )}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
@@ -288,7 +288,7 @@ export function ChatInput({ centered = false }: ChatInputProps) {
                 >
                   <Plus className="size-4" strokeWidth={2.2} />
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-48 rounded-2xl border-white/10 bg-popover/95 p-1.5 backdrop-blur-xl">
+                <DropdownMenuContent align="start" className="w-48 rounded-2xl border border-hairline bg-popover p-1.5 backdrop-blur-xl">
                   <DropdownMenuItem onClick={() => fileInputRef.current?.click()} className="gap-2 rounded-xl px-2.5 py-2 text-xs">
                     <Paperclip className="size-4 text-muted-foreground" />
                     Attach files
@@ -365,7 +365,7 @@ export function ChatInput({ centered = false }: ChatInputProps) {
 
                 <DropdownMenuContent
                   align="end"
-                  className="w-56 rounded-2xl border-white/10 bg-popover/95 p-1.5 backdrop-blur-xl"
+                  className="w-56 rounded-2xl border border-hairline bg-popover p-1.5 backdrop-blur-xl"
                 >
                   <div className="px-2.5 pb-1 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/60">
                     Reasoning Mode

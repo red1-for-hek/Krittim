@@ -1,6 +1,5 @@
 'use client';
 
-import { UserRound, LogOut, Settings2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useRouter } from 'next/navigation';
 
@@ -10,7 +9,7 @@ import { useRouter } from 'next/navigation';
  * Logged in: avatar — clicking opens the Profile page directly.
  */
 export function ProfileButton() {
-  const { user, isAuthenticated, checking, logout } = useAuthStore();
+  const { user, isAuthenticated, checking } = useAuthStore();
   const router = useRouter();
 
   if (checking && !isAuthenticated) {

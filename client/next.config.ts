@@ -3,20 +3,13 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  output: "standalone",
   cacheComponents: true,
   partialPrefetching: true,
-  // Allow the Arena preview proxy (and Vercel) to load dev assets cross-origin.
-  allowedDevOrigins: ["*.e2b.app", "*.vercel.app"],
-  async rewrites() {
-    // Only proxy /api to the local dev server during development.
-    // In production, the browser calls NEXT_PUBLIC_API_URL directly.
-    return process.env.NODE_ENV === 'development'
-      ? [{ source: "/api/:path*", destination: "http://127.0.0.1:4000/api/:path*" }]
-      : [];
-  },
+  serverExternalPackages: ["mongoose", "express", "helmet", "cors", "express-rate-limit", "bcryptjs", "jsonwebtoken"],
+  allowedDevOrigins: ["*.e2b.app", "*.vercel.app", "*.run.app"],
   turbopack: {
-    root: path.resolve(__dirname),
+    root: path.resolve(__dirname, ".."),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],

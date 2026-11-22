@@ -70,7 +70,10 @@ export interface UseSpeechToTextResult {
 
 export function useSpeechToText({ lang, onTranscript }: UseSpeechToTextOptions = {}): UseSpeechToTextResult {
   const [supported, setSupported] = useState(false);
-  useEffect(() => { setSupported(getRecognitionCtor() !== null); }, []);
+  useEffect(() => {
+    const id = window.setTimeout(() => setSupported(getRecognitionCtor() !== null), 0);
+    return () => window.clearTimeout(id);
+  }, []);
   const [listening, setListening] = useState(false);
   const [interimTranscript, setInterimTranscript] = useState('');
   const [volume, setVolume] = useState(0);

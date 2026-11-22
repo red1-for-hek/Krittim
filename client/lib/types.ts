@@ -42,13 +42,13 @@ export interface Chat {
   id: string;
   slug: string;
   title: string;
-  projectId?: string | null;
+  groupId?: string | null;
   pinned?: boolean;
   createdAt: number;
   updatedAt: number;
 }
 
-export interface Project {
+export interface Group {
   id: string;
   name: string;
   emoji: string;
@@ -132,6 +132,7 @@ export interface UserProfile {
   plan: string;
   initials: string;
   avatarUrl?: string;
+  dateOfBirth?: string;
   provider?: "google" | "github" | "discord" | "email";
 }
 
@@ -142,13 +143,13 @@ export interface UserProfile {
 /** Keys of ChatState that are written to localStorage via the zustand persist middleware. */
 export const PERSISTED_STATE_KEYS = [
   "chats",
-  "projects",
+  "groups",
   "activeChatId",
   "messagesByChatId",
   "model",
   "reasoningMode",
   "sidebarOpen",
-  "projectsCollapsed",
+  "groupsCollapsed",
   "theme",
   "aiMemory",
   "streamResponses",

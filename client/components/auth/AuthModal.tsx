@@ -63,7 +63,7 @@ export function AuthModal() {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="w-full max-w-sm rounded-2xl border-white/10 bg-popover/95 p-6 backdrop-blur-xl">
+      <DialogContent className="w-full max-w-sm rounded-2xl border border-hairline bg-popover p-6 backdrop-blur-xl">
         <DialogHeader className="items-center text-center">
           <span className="grid size-11 place-items-center rounded-2xl bg-gradient-to-br from-brand to-brand-soft text-lg font-bold text-white shadow-[0_0_24px_-6px_var(--brand)]">
             K

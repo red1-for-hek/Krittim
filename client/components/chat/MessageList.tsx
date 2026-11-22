@@ -5,7 +5,6 @@ import {
   Check,
   Copy,
   ExternalLink,
-  Gauge,
   Globe2,
   ImagePlus,
   Pencil,
@@ -13,7 +12,6 @@ import {
   Sparkles,
   ThumbsDown,
   ThumbsUp,
-  Wand2,
   X,
   Loader2,
 } from 'lucide-react';
@@ -26,16 +24,11 @@ import rehypeKatex from 'rehype-katex';
 import 'katex/dist/katex.min.css';
 
 import { cn } from '@/lib/utils';
-import type { ChatMessage, ModelId, SearchStage } from '@/lib/types';
+import type { ChatMessage, SearchStage } from '@/lib/types';
 import { selectActiveMessages, useChatStore } from '@/store/chatStore';
 
 /* Lightweight thread canvas — clean, professional, no logo when answering.
    Assistant prose reads in a serif (Claude-style). */
-
-const MODEL_ICONS: Record<ModelId, ReactNode> = {
-  r1_xenon: <BrainCircuit className="size-4" strokeWidth={1.9} fill="none" />,
-  s1_neon: <Gauge className="size-4" strokeWidth={1.9} fill="none" />,
-};
 
 const STAGE_ICONS: Record<SearchStage, { icon: ReactNode; label: string }> = {
   searching: { icon: <Globe2 className="size-3.5" strokeWidth={1.9} />, label: 'Searching the web' },
@@ -154,7 +147,7 @@ const markdownComponents = {
     <td className="border-b border-hairline/60 px-3 py-2 align-top last:border-b-0">{children}</td>
   ),
   pre: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
-  code: ({ className, children, ...rest }: any) => {
+  code: ({ className, children, ...rest }: React.ComponentPropsWithoutRef<'code'>) => {
     const isBlock = String(children).includes('\n') || /language-/.test(className ?? '');
     if (isBlock) return <CodeBlock className={className}>{children}</CodeBlock>;
     return (
@@ -219,7 +212,7 @@ const UserBubble = memo(function UserBubble({ message }: { message: ChatMessage 
             }}
             autoFocus
             rows={Math.min(8, draft.split('\n').length + 1)}
-            className="w-full resize-none rounded-2xl rounded-br-md border border-brand/40 bg-white/[0.07] px-4 py-2.5 text-[15px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:text-base"
+            className="w-full resize-none rounded-2xl rounded-br-md border border-brand/45 bg-surface px-4 py-2.5 text-[15px] leading-relaxed text-foreground outline-none focus-visible:ring-2 focus-visible:ring-brand/30 sm:text-base"
           />
           <div className="mt-1.5 flex items-center justify-end gap-2">
             <button type="button" onClick={() => setEditing(false)} className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground">
@@ -231,7 +224,7 @@ const UserBubble = memo(function UserBubble({ message }: { message: ChatMessage 
           </div>
         </div>
       ) : (
-        <div className="w-full max-w-[92%] rounded-2xl rounded-br-md border border-white/[0.08] bg-white/[0.07] px-4 py-2.5 text-[15px] leading-relaxed text-foreground sm:max-w-[80%] sm:text-base md:max-w-[70%] lg:max-w-[65%]">
+        <div className="w-full max-w-[92%] rounded-2xl rounded-br-md border border-hairline bg-surface px-4 py-2.5 text-[15px] leading-relaxed text-foreground shadow-xs sm:max-w-[80%] sm:text-base md:max-w-[70%] lg:max-w-[65%]">
           <p className="whitespace-pre-wrap break-words">{message.content}</p>
         </div>
       )}
@@ -287,11 +280,11 @@ const AssistantBubble = memo(function AssistantBubble({
     <div className="msg-enter group/msg flex w-full gap-3">
       {/* No assistant avatar icon — clean like Arena */}
       <div className="min-w-0 flex-1">
-        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/70">
-          <span className="truncate font-medium text-foreground/90">{modelName}</span>
+        <div className="mb-1 flex flex-wrap items-center gap-2 text-xs text-muted-foreground/75">
+          <span className="truncate font-semibold text-foreground/90">{modelName}</span>
           {message.mode && (
-            <span className="flex shrink-0 items-center gap-1 rounded-full border border-hairline bg-surface-soft px-1.5 py-px font-mono text-[9px] uppercase tracking-wider text-brand">
-              <Gauge className="size-2.5 text-brand" strokeWidth={2} /> {message.mode}
+            <span className="flex shrink-0 items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-brand">
+              · {message.mode}
             </span>
           )}
         </div>
@@ -404,19 +397,6 @@ const AssistantBubble = memo(function AssistantBubble({
     </div>
   );
 });
-
-function ThinkingDots() {
-  return (
-    <span className="inline-flex items-center gap-1.5 py-1" aria-label="Krittim is thinking">
-      <span className="flex gap-1">
-        <span className="thinking-dot size-1.5 rounded-full bg-brand/80" style={{ '--d': '0ms' } as React.CSSProperties} />
-        <span className="thinking-dot size-1.5 rounded-full bg-brand/80" style={{ '--d': '150ms' } as React.CSSProperties} />
-        <span className="thinking-dot size-1.5 rounded-full bg-brand/80" style={{ '--d': '300ms' } as React.CSSProperties} />
-      </span>
-      <span className="ml-1 text-xs italic text-muted-foreground/70">thinking…</span>
-    </span>
-  );
-}
 
 /* ----------------------------- skeleton ----------------------------- */
 

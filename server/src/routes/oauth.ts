@@ -1,22 +1,11 @@
 import { Router, type Request, type Response } from 'express';
 import crypto from 'node:crypto';
 import { User } from '../models/User.js';
+import { isDbConnected } from '../lib/db.js';
+import { defaultSettings, memId, memoryStore } from '../lib/memoryStore.js';
 import { signAccess, signRefresh } from '../lib/jwt.js';
 
-/**
- * OAuth 2.0 Authorization Code flow for Google · GitHub · Discord.
- *
- * The server holds the client secrets (never the browser). The browser only
- * ever does a top-level redirect to the provider and back, so there is no CORS
- * or token-in-JS exposure. On success we mint our own JWT pair and hand it to
- * the SPA through the URL *fragment* (#…), which browsers do not send to
- * servers or log — the client page immediately strips it from the address bar.
- *
- *   GET /api/auth/oauth/:provider            → 302 to the provider consent screen
- *   GET /api/auth/oauth/:provider/callback   → exchange code → JWT → redirect to SPA
- */
-
-const router = Router();
+const router: Router = Router();
 
 type Provider = 'google' | 'github' | 'discord';
 
@@ -26,7 +15,6 @@ interface ProviderConfig {
   authorizeUrl: string;
   tokenUrl: string;
   scope: string;
-  /** Extra headers for the token exchange (GitHub wants JSON). */
   tokenHeaders?: Record<string, string>;
   profileUrl: string;
 }
@@ -53,33 +41,32 @@ function providerConfig(provider: Provider): ProviderConfig | null {
       profileUrl: 'https://api.github.com/user',
     };
   }
-  return {
-    clientId: process.env.DISCORD_CLIENT_ID ?? '',
-    clientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',
-    authorizeUrl: 'https://discord.com/oauth2/authorize',
-    tokenUrl: 'https://discord.com/api/oauth2/token',
-    scope: 'identify email',
-    profileUrl: 'https://discord.com/api/users/@me',
-  };
+  if (provider === 'discord') {
+    return {
+      clientId: process.env.DISCORD_CLIENT_ID ?? '',
+      clientSecret: process.env.DISCORD_CLIENT_SECRET ?? '',
+      authorizeUrl: 'https://discord.com/oauth2/authorize',
+      tokenUrl: 'https://discord.com/api/oauth2/token',
+      scope: 'identify email',
+      profileUrl: 'https://discord.com/api/users/@me',
+    };
+  }
+  return null;
 }
 
-/** Absolute base URL of THIS server (used to build the callback redirect URI). */
 function baseUrl(req: Request): string {
   const configured = process.env.OAUTH_REDIRECT_BASE?.trim();
   if (configured) return configured.replace(/\/$/, '');
-  const proto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0] ?? req.protocol;
-  const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'localhost:4000';
+  const proto = (req.headers['x-forwarded-proto'] as string | undefined)?.split(',')[0] ?? req.protocol ?? 'http';
+  const host = req.headers['x-forwarded-host'] ?? req.headers.host ?? 'localhost:3000';
   return `${proto}://${host}`;
 }
 
-/** Where the SPA lives — we bounce the user back here after a successful login. */
-function clientAppUrl(): string {
-  return (process.env.CLIENT_APP_URL ?? process.env.CLIENT_ORIGIN ?? 'http://localhost:3000').replace(/\/$/, '');
+function clientAppUrl(req: Request): string {
+  const configured = (process.env.CLIENT_APP_URL ?? process.env.CLIENT_ORIGIN)?.trim();
+  if (configured) return configured.replace(/\/$/, '');
+  return baseUrl(req);
 }
-
-/* ------------------------------ CSRF state ------------------------------ */
-// Stateless, HMAC-signed state so it survives serverless cold starts and
-// multi-instance deploys (no shared session store required).
 
 const STATE_SECRET = process.env.OAUTH_STATE_SECRET ?? process.env.JWT_SECRET ?? 'krittim-dev-state-secret';
 
@@ -100,14 +87,11 @@ function verifyState(state: string | undefined, provider: Provider): boolean {
   try {
     const data = JSON.parse(Buffer.from(payload, 'base64url').toString()) as { p?: string; t?: number };
     if (data.p !== provider) return false;
-    // 10 minute window — enough for a user to complete the consent screen.
     return typeof data.t === 'number' && Date.now() - data.t < 10 * 60 * 1000;
   } catch {
     return false;
   }
 }
-
-/* --------------------------- token + profile --------------------------- */
 
 interface NormalizedProfile {
   providerId: string;
@@ -165,7 +149,6 @@ async function fetchProfile(provider: Provider, config: ProviderConfig, accessTo
     return { providerId: String(p.id), email, name: p.name || p.login, avatarUrl: p.avatar_url };
   }
 
-  // Discord
   const res = await fetch(config.profileUrl, { headers: { Authorization: `Bearer ${accessToken}` } });
   if (!res.ok) throw new Error(`discord profile failed (${res.status})`);
   const p = await res.json() as { id: string; email?: string; username: string; global_name?: string; avatar?: string };
@@ -174,10 +157,8 @@ async function fetchProfile(provider: Provider, config: ProviderConfig, accessTo
   return { providerId: p.id, email: p.email, name: p.global_name || p.username, avatarUrl: avatar };
 }
 
-/* ------------------------------- routes ------------------------------- */
-
-function redirectWithError(res: Response, message: string): void {
-  const target = `${clientAppUrl()}/auth/callback#error=${encodeURIComponent(message)}`;
+function redirectWithError(req: Request, res: Response, message: string): void {
+  const target = `${clientAppUrl(req)}/auth/callback#error=${encodeURIComponent(message)}`;
   res.redirect(target);
 }
 
@@ -186,7 +167,7 @@ router.get('/:provider', (req: Request, res: Response): void => {
   const config = providerConfig(provider);
   if (!config) { res.status(404).json({ error: 'Unknown provider' }); return; }
   if (!config.clientId || !config.clientSecret) {
-    redirectWithError(res, `${provider} login is not configured on the server`);
+    redirectWithError(req, res, `${provider} login is not configured on the server`);
     return;
   }
   const redirectUri = `${baseUrl(req)}/api/auth/oauth/${provider}/callback`;
@@ -196,7 +177,6 @@ router.get('/:provider', (req: Request, res: Response): void => {
   url.searchParams.set('response_type', 'code');
   url.searchParams.set('scope', config.scope);
   url.searchParams.set('state', signState(provider));
-  // Google: force account chooser so multi-account users can pick.
   if (provider === 'google') url.searchParams.set('prompt', 'select_account');
   res.redirect(url.toString());
 });
@@ -206,20 +186,58 @@ router.get('/:provider/callback', async (req: Request, res: Response): Promise<v
   const config = providerConfig(provider);
   if (!config) { res.status(404).json({ error: 'Unknown provider' }); return; }
 
-  if (req.query.error) { redirectWithError(res, String(req.query.error_description ?? req.query.error)); return; }
+  if (req.query.error) { redirectWithError(req, res, String(req.query.error_description ?? req.query.error)); return; }
   if (!verifyState(req.query.state as string | undefined, provider)) {
-    redirectWithError(res, 'Invalid or expired login session. Please try again.');
+    redirectWithError(req, res, 'Invalid or expired login session. Please try again.');
     return;
   }
   const code = req.query.code as string | undefined;
-  if (!code) { redirectWithError(res, 'Missing authorization code'); return; }
+  if (!code) { redirectWithError(req, res, 'Missing authorization code'); return; }
 
   try {
     const redirectUri = `${baseUrl(req)}/api/auth/oauth/${provider}/callback`;
     const accessToken = await exchangeCode(config, code, redirectUri);
     const profile = await fetchProfile(provider, config, accessToken);
 
-    // Upsert: match by (provider, providerId); link to an existing account by email.
+    let userId: string;
+    let userEmail: string;
+
+    if (!isDbConnected()) {
+      const normalizedEmail = profile.email.toLowerCase();
+      let user = [...memoryStore.users.values()].find(
+        (u) => (u.provider === provider && u.providerId === profile.providerId) || u.email === normalizedEmail,
+      );
+      if (!user) {
+        const id = memId();
+        const now = new Date();
+        user = {
+          _id: id,
+          name: profile.name,
+          email: normalizedEmail,
+          provider,
+          providerId: profile.providerId,
+          avatarUrl: profile.avatarUrl,
+          plan: 'free',
+          settings: defaultSettings(),
+          createdAt: now,
+          updatedAt: now,
+        };
+        memoryStore.users.set(id, user);
+      } else {
+        user.provider = provider;
+        user.providerId = profile.providerId;
+        if (profile.avatarUrl) user.avatarUrl = profile.avatarUrl;
+      }
+      userId = user._id;
+      userEmail = user.email;
+      const access = signAccess({ userId, email: userEmail });
+      const refresh = signRefresh({ userId, email: userEmail });
+      user.refreshToken = refresh;
+      const fragment = new URLSearchParams({ access_token: access, refresh_token: refresh });
+      res.redirect(`${clientAppUrl(req)}/auth/callback#${fragment.toString()}`);
+      return;
+    }
+
     let user = await User.findOne({ provider, providerId: profile.providerId });
     if (!user) {
       const byEmail = await User.findOne({ email: profile.email.toLowerCase() });
@@ -247,11 +265,11 @@ router.get('/:provider/callback', async (req: Request, res: Response): Promise<v
     await User.findByIdAndUpdate(user._id, { refreshToken: refresh });
 
     const fragment = new URLSearchParams({ access_token: access, refresh_token: refresh });
-    res.redirect(`${clientAppUrl()}/auth/callback#${fragment.toString()}`);
+    res.redirect(`${clientAppUrl(req)}/auth/callback#${fragment.toString()}`);
   } catch (err) {
     const message = err instanceof Error ? err.message : 'OAuth login failed';
     console.warn(`[oauth] ${provider} failed:`, message);
-    redirectWithError(res, message);
+    redirectWithError(req, res, message);
   }
 });
 
